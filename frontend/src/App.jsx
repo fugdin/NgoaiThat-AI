@@ -4,10 +4,25 @@ function App() {
   const [health, setHealth] = useState(null);
 
   useEffect(() => {
-    fetch(import.meta.env.VITE_API_URL + "/health")
-      .then(res => res.json())
-      .then(data => setHealth(data))
-      .catch(() => setHealth({ ok: false }));
+    const base = import.meta.env.VITE_API_URL;
+    if (!base) {
+      setHealth({ ok: false, error: "❌ Missing VITE_API_URL in .env" });
+      return;
+    }
+
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 5000);
+
+    fetch(`${base}/health`, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data) => setHealth(data))
+      .catch((err) =>
+        setHealth({
+          ok: false,
+          error: err.name === "AbortError" ? "Timeout after 5s" : "Fetch error",
+        })
+      )
+      .finally(() => clearTimeout(t));
   }, []);
 
   return (
