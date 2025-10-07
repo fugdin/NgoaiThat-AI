@@ -145,23 +145,33 @@ erDiagram
 ## **8. Sơ đồ Use Case**
 
 ```mermaid
-usecaseDiagram
-actor User
-actor Admin
+flowchart TB
+    user([User])
+    admin([Admin])
 
-rectangle System {
-    User --> (Đăng ký tài khoản)
-    User --> (Đăng nhập)
-    User --> (Upload ảnh mẫu)
-    User --> (Nhập yêu cầu thiết kế)
-    User --> (Upload ảnh nhà thật)
-    User --> (Xem ảnh gợi ý hoàn thiện)
-    User --> (Xem lịch sử thiết kế)
+    subgraph System
+      UC1((Đăng ký tài khoản))
+      UC2((Đăng nhập))
+      UC3((Upload ảnh mẫu))
+      UC4((Nhập yêu cầu thiết kế))
+      UC5((Upload ảnh nhà thật))
+      UC6((Xem ảnh gợi ý hoàn thiện))
+      UC7((Xem lịch sử thiết kế))
+      A1((Quản lý người dùng))
+      A2((Xem thống kê hệ thống))
+    end
 
-    Admin --> (Đăng nhập)
-    Admin --> (Quản lý người dùng)
-    Admin --> (Xem thống kê hệ thống)
-}
+    user --> UC1
+    user --> UC2
+    user --> UC3
+    user --> UC4
+    user --> UC5
+    user --> UC6
+    user --> UC7
+
+    admin --> UC2
+    admin --> A1
+    admin --> A2
 ```
 
 ---
