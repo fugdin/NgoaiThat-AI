@@ -21,7 +21,7 @@ Gồm 2 phần:
 cd backend
 npm install
 npm run dev
-
+```
 # **HỆ THỐNG GỢI Ý NGOẠI THẤT CĂN NHÀ**
 
 **Phân tích & Thiết kế hệ thống — Sinh viên năm 4**
