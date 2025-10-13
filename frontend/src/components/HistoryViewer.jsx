@@ -57,6 +57,28 @@ function HistoryViewer({ entries, title, emptyMessage }) {
                     <span className="text-slate-400">Ghi chú người dùng:</span>{" "}
                     {entry.notes || "Không có"}
                   </p>
+                  {entry.dominantColorHex ? (
+                    <p className="flex items-center gap-2">
+                      <span className="text-slate-400">Tông màu áp dụng:</span>
+                      <span
+                        className="inline-flex h-4 w-4 rounded-full border border-slate-600"
+                        style={{ backgroundColor: entry.dominantColorHex }}
+                        title={entry.dominantColorHex}
+                      />
+                      <span>{entry.dominantColorHex}</span>
+                    </p>
+                  ) : null}
+                  {entry.model ? (
+                    <p>
+                      <span className="text-slate-400">Công cụ:</span>{" "}
+                      {entry.model}
+                    </p>
+                  ) : null}
+                  {entry.prompt ? (
+                    <p className="text-xs text-slate-500">
+                      Prompt: {entry.prompt}
+                    </p>
+                  ) : null}
                 </div>
               </article>
             );

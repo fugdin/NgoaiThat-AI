@@ -1,6 +1,17 @@
 import { useRef } from "react";
+import WizardNavigation from "./WizardNavigation.jsx";
 
-function UploadSampleStep({ sampleImage, onSampleSelected, onNext }) {
+function UploadSampleStep({
+  sampleImage,
+  onSampleSelected,
+  onNext,
+  onBack,
+  disableBack = true,
+  loading = false,
+  error = null,
+  extractedLayout = null,
+  averageColor = null,
+}) {
   const fileInputRef = useRef(null);
 
   const handleFileChange = (event) => {
@@ -87,21 +98,59 @@ function UploadSampleStep({ sampleImage, onSampleSelected, onNext }) {
           <img
             src={sampleImage.preview}
             alt="Ảnh mẫu"
-            className="max-h-80 w-full rounded-lg object-cover shadow-lg"
+            className="block max-w-full rounded-lg shadow-lg"
+            style={{ maxHeight: "calc(100vh - 300px)", objectFit: "contain" }}
           />
         </div>
       ) : null}
 
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!sampleImage}
-          className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-        >
-          Tiếp tục
-        </button>
-      </div>
+      {extractedLayout ? (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+          <p className="font-semibold text-emerald-200">Gợi ý nhận diện nhanh</p>
+          <p className="mt-1 text-emerald-100">
+            {extractedLayout.notes ||
+              "Hệ thống đã phân tích bố cục và phong cách từ ảnh mẫu."}
+          </p>
+          {Array.isArray(extractedLayout.styleKeywords) &&
+          extractedLayout.styleKeywords.length ? (
+            <p className="mt-2 text-xs uppercase tracking-wide text-emerald-300">
+              Từ khóa: {extractedLayout.styleKeywords.join(", ")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {averageColor?.hex ? (
+        <div className="flex items-center gap-3 rounded-lg border border-slate-600 bg-slate-800/40 p-4 text-sm text-slate-300">
+          <span
+            className="h-10 w-10 rounded-full border border-slate-700 shadow-inner"
+            style={{ backgroundColor: averageColor.hex }}
+          />
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-400">
+              Tông màu chủ đạo
+            </p>
+            <p className="font-semibold text-slate-100">{averageColor.hex}</p>
+            <p className="text-xs text-slate-500">
+              RGB ({averageColor.r}, {averageColor.g}, {averageColor.b})
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          {error}
+        </p>
+      ) : null}
+
+      <WizardNavigation
+        onBack={onBack}
+        onNext={onNext}
+        disableBack={disableBack}
+        disableNext={!sampleImage}
+        nextLoading={loading}
+      />
     </div>
   );
 }

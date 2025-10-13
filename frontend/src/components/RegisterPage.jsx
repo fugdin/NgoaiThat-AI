@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
-function RegisterPage({ onRegister, onSwitchMode }) {
+function RegisterPage() {
+  const { register, user } = useAuth();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -8,6 +12,12 @@ function RegisterPage({ onRegister, onSwitchMode }) {
     confirm: "",
   });
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      navigate("/wizard/upload-sample", { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({
@@ -28,7 +38,7 @@ function RegisterPage({ onRegister, onSwitchMode }) {
       return;
     }
 
-    const result = onRegister({
+    const result = register({
       name: form.name.trim(),
       email: form.email.trim(),
       password: form.password,
@@ -39,9 +49,12 @@ function RegisterPage({ onRegister, onSwitchMode }) {
       return;
     }
 
-    onSwitchMode("login", {
-      prefillEmail: result.email,
-      notice: "Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.",
+    navigate("/login", {
+      replace: true,
+      state: {
+        prefillEmail: result.email,
+        notice: "Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.",
+      },
     });
   };
 
@@ -132,13 +145,12 @@ function RegisterPage({ onRegister, onSwitchMode }) {
 
         <p className="text-center text-xs text-slate-500">
           Đã có tài khoản?{" "}
-          <button
-            type="button"
-            onClick={() => onSwitchMode("login")}
+          <Link
+            to="/login"
             className="font-semibold text-emerald-300 hover:text-emerald-200"
           >
             Đăng nhập
-          </button>
+          </Link>
         </p>
       </div>
     </div>

@@ -1,22 +1,39 @@
 import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
-function LoginPage({ onLogin, onSwitchMode, prefillEmail = "", notice = "" }) {
+const DEFAULT_REDIRECT = "/wizard/upload-sample";
+
+function LoginPage() {
+  const { login, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state ?? {};
+
   const [credentials, setCredentials] = useState({
-    email: "",
+    email: locationState.prefillEmail ?? "",
     password: "",
   });
   const [error, setError] = useState("");
-  const [info, setInfo] = useState(notice);
+  const [info, setInfo] = useState(locationState.notice ?? "");
 
   useEffect(() => {
-    if (prefillEmail) {
-      setCredentials((prev) => ({ ...prev, email: prefillEmail }));
+    if (user) {
+      navigate(DEFAULT_REDIRECT, { replace: true });
     }
-  }, [prefillEmail]);
+  }, [user, navigate]);
 
   useEffect(() => {
-    setInfo(notice);
-  }, [notice]);
+    if (locationState.prefillEmail) {
+      setCredentials((prev) => ({
+        ...prev,
+        email: locationState.prefillEmail,
+      }));
+    }
+    if (locationState.notice) {
+      setInfo(locationState.notice);
+    }
+  }, [locationState.prefillEmail, locationState.notice]);
 
   const handleChange = (field) => (event) => {
     setCredentials((prev) => ({
@@ -27,8 +44,7 @@ function LoginPage({ onLogin, onSwitchMode, prefillEmail = "", notice = "" }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-
-    const result = onLogin({
+    const result = login({
       email: credentials.email.trim(),
       password: credentials.password,
     });
@@ -40,6 +56,9 @@ function LoginPage({ onLogin, onSwitchMode, prefillEmail = "", notice = "" }) {
 
     setError("");
     setInfo("");
+
+    const redirectPath = locationState.from || DEFAULT_REDIRECT;
+    navigate(redirectPath, { replace: true, state: null });
   };
 
   return (
@@ -106,13 +125,12 @@ function LoginPage({ onLogin, onSwitchMode, prefillEmail = "", notice = "" }) {
 
         <p className="text-center text-xs text-slate-500">
           Chưa có tài khoản?{" "}
-          <button
-            type="button"
-            onClick={() => onSwitchMode("register")}
+          <Link
+            to="/register"
             className="font-semibold text-emerald-300 hover:text-emerald-200"
           >
             Đăng ký ngay
-          </button>
+          </Link>
         </p>
 
         <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-500">
