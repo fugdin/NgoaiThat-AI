@@ -1,3 +1,5 @@
+import WizardNavigation from "./WizardNavigation.jsx";
+
 const STYLE_OPTIONS = [
   {
     value: "Hiện đại",
@@ -17,7 +19,15 @@ const STYLE_OPTIONS = [
   },
 ];
 
-function SelectRequirementsStep({ requirements, onChange, onBack, onNext }) {
+function SelectRequirementsStep({
+  requirements,
+  onChange,
+  onBack,
+  onNext,
+  loading = false,
+  error = null,
+  stylePlan = null,
+}) {
   const handleFieldChange = (field) => (event) => {
     onChange({ ...requirements, [field]: event.target.value });
   };
@@ -103,22 +113,42 @@ function SelectRequirementsStep({ requirements, onChange, onBack, onNext }) {
         />
       </label>
 
-      <div className="flex justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-lg border border-slate-600 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-400 hover:text-emerald-200"
-        >
-          Quay lại
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400"
-        >
-          Tiếp tục
-        </button>
-      </div>
+      {stylePlan?.combined?.length ? (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+          <p className="font-semibold text-emerald-200">
+            Từ khóa gợi ý từ ảnh mẫu
+          </p>
+          <p className="mt-1 text-emerald-100">
+            {stylePlan.combined.join(", ")}
+          </p>
+          {stylePlan.dominantColor?.hex ? (
+            <p className="mt-2 flex items-center gap-2 text-xs text-emerald-200">
+              <span
+                className="inline-flex h-4 w-4 rounded-full border border-emerald-300"
+                style={{ backgroundColor: stylePlan.dominantColor.hex }}
+              />
+              Tông màu gợi ý: {stylePlan.dominantColor.hex.toUpperCase()}
+            </p>
+          ) : null}
+          {stylePlan.promptHint ? (
+            <p className="mt-2 text-xs uppercase tracking-wide text-emerald-300">
+              Gợi ý AI: {stylePlan.promptHint}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          {error}
+        </p>
+      ) : null}
+
+      <WizardNavigation
+        onBack={onBack}
+        onNext={onNext}
+        nextLoading={loading}
+      />
     </div>
   );
 }

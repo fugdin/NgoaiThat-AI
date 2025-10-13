@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import WizardNavigation from "./WizardNavigation.jsx";
 
 function ResultStep({
   data,
@@ -11,8 +12,18 @@ function ResultStep({
   const [notes, setNotes] = useState("");
   const [isSaved, setIsSaved] = useState(false);
 
+  useEffect(() => {
+    setIsSaved(false);
+    setNotes("");
+  }, [data.result]);
+
   const houseName = data.houseImage?.file?.name ?? "Ảnh nhà hiện trạng";
   const sampleName = data.sampleImage?.file?.name ?? "Ảnh mẫu tham chiếu";
+  const finalResult = data.result;
+  const resultImageUrl = finalResult?.outputImageUrl ?? "";
+  const resultDescription = finalResult?.description ?? "Đang chuẩn bị bản kết hợp từ AI.";
+  const resultModel = finalResult?.model ?? "";
+  const dominantColor = finalResult?.colorApplied?.hex ?? "";
 
   const formattedHistory = useMemo(
     () =>
@@ -25,8 +36,10 @@ function ResultStep({
 
   const handleSave = () => {
     if (isSaved) return;
-    onSaveHistory(notes.trim());
-    setIsSaved(true);
+    const result = onSaveHistory(notes.trim());
+    if (result?.ok) {
+      setIsSaved(true);
+    }
   };
 
   return (
@@ -66,6 +79,37 @@ function ResultStep({
           </ul>
 
           <div className="grid gap-4 text-sm">
+            {resultImageUrl ? (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-emerald-300">
+                  Ảnh kết quả
+                </p>
+                <img
+                  src={resultImageUrl}
+                  alt="Ảnh kết quả"
+                  className="mt-2 block max-w-full rounded-lg shadow"
+                  style={{ maxHeight: "320px", objectFit: "contain" }}
+                />
+                <p className="mt-2 text-xs text-slate-400">
+                  {resultDescription}
+                </p>
+                {resultModel ? (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Công cụ: {resultModel}
+                  </p>
+                ) : null}
+                {dominantColor ? (
+                  <p className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                    <span>Tông màu áp dụng:</span>
+                    <span
+                      className="inline-flex h-4 w-4 rounded-full border border-slate-600"
+                      style={{ backgroundColor: dominantColor }}
+                    />
+                    <span>{dominantColor}</span>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {data.sampleImage?.preview ? (
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-400">
@@ -75,7 +119,8 @@ function ResultStep({
                 <img
                   src={data.sampleImage.preview}
                   alt="Ảnh tham chiếu"
-                  className="mt-2 max-h-48 w-full rounded-lg object-cover"
+                  className="mt-2 block max-w-full rounded-lg"
+                  style={{ maxHeight: "220px", objectFit: "contain" }}
                 />
               </div>
             ) : null}
@@ -88,7 +133,8 @@ function ResultStep({
                 <img
                   src={data.houseImage.preview}
                   alt="Ảnh nhà"
-                  className="mt-2 max-h-48 w-full rounded-lg object-cover"
+                  className="mt-2 block max-w-full rounded-lg"
+                  style={{ maxHeight: "220px", objectFit: "contain" }}
                 />
               </div>
             ) : null}
@@ -122,30 +168,30 @@ function ResultStep({
             />
           </label>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={onBack}
-              className="rounded-lg border border-slate-600 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-400 hover:text-emerald-200"
-            >
-              Quay lại điều chỉnh
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaved}
-              className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-            >
-              {isSaved ? "Đã lưu vào lịch sử" : "Lưu vào lịch sử"}
-            </button>
-            <button
-              type="button"
-              onClick={onRestart}
-              className="rounded-lg border border-transparent bg-slate-700 px-5 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-600"
-            >
-              Bắt đầu dự án mới
-            </button>
-          </div>
+          <WizardNavigation
+            onBack={onBack}
+            backLabel="Quay lại điều chỉnh"
+            disableBack={false}
+            primaryRight={
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaved}
+                className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+              >
+                {isSaved ? "Đã lưu vào lịch sử" : "Lưu vào lịch sử"}
+              </button>
+            }
+            secondaryRight={
+              <button
+                type="button"
+                onClick={onRestart}
+                className="inline-flex items-center justify-center rounded-lg border border-transparent bg-slate-700 px-5 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-600"
+              >
+                Bắt đầu dự án mới
+              </button>
+            }
+          />
         </div>
       </div>
 
@@ -177,10 +223,23 @@ function ResultStep({
                 <p>Bảng màu: {entry.colorPalette || "Chưa cung cấp"}</p>
                 <p>Điểm nhấn: {entry.decorItems || "Chưa cung cấp"}</p>
                 <p>Lưu ý: {entry.aiSuggestions || "Không có"}</p>
+                {entry.description ? (
+                  <p className="mt-1 text-xs text-slate-400">
+                    Mô tả kết quả: {entry.description}
+                  </p>
+                ) : null}
                 {entry.notes ? (
                   <p className="mt-1 text-xs text-slate-400">
                     Ghi chú người dùng: {entry.notes}
                   </p>
+                ) : null}
+                {entry.outputImageUrl ? (
+                  <img
+                    src={entry.outputImageUrl}
+                    alt="Ảnh kết quả đã lưu"
+                    className="mt-2 block w-full rounded-lg"
+                    style={{ maxHeight: "220px", objectFit: "contain" }}
+                  />
                 ) : null}
               </div>
             ))

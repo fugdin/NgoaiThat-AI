@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AdminDashboard from "./components/AdminDashboard.jsx";
+import AnimatedOutlet from "./components/AnimatedOutlet.jsx";
 import HistoryViewer from "./components/HistoryViewer.jsx";
 import LoginPage from "./components/LoginPage.jsx";
 import RegisterPage from "./components/RegisterPage.jsx";
@@ -7,465 +9,104 @@ import ResultStep from "./components/ResultStep.jsx";
 import SelectRequirementsStep from "./components/SelectRequirementsStep.jsx";
 import UploadHouseStep from "./components/UploadHouseStep.jsx";
 import UploadSampleStep from "./components/UploadSampleStep.jsx";
+import { useAuth } from "./context/AuthContext.jsx";
+import { useWizard, WIZARD_STEPS } from "./context/WizardContext.jsx";
 
-const steps = [
-  { id: "sample", label: "Ảnh mẫu" },
-  { id: "requirements", label: "Yêu cầu" },
-  { id: "house", label: "Ảnh nhà" },
-  { id: "result", label: "Kết quả" },
-];
-
-const DEFAULT_USERS = [
-  {
-    email: "admin@ngoai-that.ai",
-    password: "admin123",
-    role: "admin",
-    name: "Quản trị viên",
-  },
-  {
-    email: "designer@ngoai-that.ai",
-    password: "design123",
-    role: "designer",
-    name: "Nhà thiết kế",
-  },
-];
-
-const createInitialData = () => ({
-  sampleImage: null,
-  requirements: {
-    colorPalette: "",
-    decorItems: "",
-    aiSuggestions: "",
-    style: "Hiện đại",
-  },
-  houseImage: null,
-});
-
-const createHistoryId = () => {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-};
-
-const normalizeHistory = (entries) => {
-  if (!Array.isArray(entries)) return [];
-  return entries.map((entry) => ({
-    ...entry,
-    status: entry.status || "pending",
-  }));
-};
-
-const mergeUsers = (storedUsers) => {
-  const map = new Map(
-    DEFAULT_USERS.map((user) => [user.email.toLowerCase(), user])
-  );
-  if (Array.isArray(storedUsers)) {
-    storedUsers.forEach((user) => {
-      if (user?.email) {
-        map.set(user.email.toLowerCase(), {
-          ...user,
-          email: user.email.toLowerCase(),
-        });
-      }
-    });
-  }
-  return Array.from(map.values());
-};
+const WIZARD_BASE_PATH = "/wizard";
+const FIRST_WIZARD_STEP_PATH = `${WIZARD_BASE_PATH}/${WIZARD_STEPS[0].route}`;
 
 function App() {
-  const [users, setUsers] = useState(() => {
-    if (typeof window === "undefined") return DEFAULT_USERS;
-    try {
-      const stored = window.localStorage.getItem("exteriorUsers");
-      if (!stored) return DEFAULT_USERS;
-      const parsed = JSON.parse(stored);
-      return mergeUsers(parsed);
-    } catch (error) {
-      console.warn("Không thể đọc danh sách người dùng từ localStorage:", error);
-      return DEFAULT_USERS;
-    }
-  });
-  const [user, setUser] = useState(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const stored = window.localStorage.getItem("exteriorUser");
-      if (!stored) return null;
-      const parsed = JSON.parse(stored);
-      return parsed && typeof parsed === "object" ? parsed : null;
-    } catch (error) {
-      console.warn("Không thể đọc người dùng từ localStorage:", error);
-      return null;
-    }
-  });
-  const [authMode, setAuthMode] = useState("login");
-  const [authNotice, setAuthNotice] = useState("");
-  const [authPrefillEmail, setAuthPrefillEmail] = useState("");
-  const [activeView, setActiveView] = useState("wizard");
-  const [stepIndex, setStepIndex] = useState(0);
-  const [wizardData, setWizardData] = useState(createInitialData);
-  const [history, setHistory] = useState(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = window.localStorage.getItem("exteriorHistory");
-      if (!stored) return [];
-      const parsed = JSON.parse(stored);
-      return normalizeHistory(parsed);
-    } catch (error) {
-      console.warn("Không thể đọc lịch sử từ localStorage:", error);
-      return [];
-    }
-  });
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("exteriorUsers", JSON.stringify(users));
-  }, [users]);
+      <Route element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route index element={<Navigate to={FIRST_WIZARD_STEP_PATH} replace />} />
+          <Route path="wizard" element={<WizardLayout />}>
+            <Route
+              index
+              element={<Navigate to={WIZARD_STEPS[0].route} replace />}
+            />
+            <Route path={WIZARD_STEPS[0].route} element={<UploadSampleRoute />} />
+            <Route
+              path={WIZARD_STEPS[1].route}
+              element={<SelectRequirementsRoute />}
+            />
+            <Route path={WIZARD_STEPS[2].route} element={<UploadHouseRoute />} />
+            <Route path={WIZARD_STEPS[3].route} element={<ResultRoute />} />
+          </Route>
+          <Route path="history" element={<HistoryRoute />} />
+          <Route path="admin" element={<AdminRoute />} />
+          <Route path="*" element={<Navigate to={FIRST_WIZARD_STEP_PATH} replace />} />
+        </Route>
+      </Route>
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("exteriorHistory", JSON.stringify(history));
-  }, [history]);
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+}
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (user) {
-      window.localStorage.setItem("exteriorUser", JSON.stringify(user));
-    } else {
-      window.localStorage.removeItem("exteriorUser");
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user?.role !== "admin" && activeView === "admin") {
-      setActiveView("wizard");
-    }
-  }, [activeView, user]);
-
-  useEffect(() => {
-    return () => {
-      if (wizardData.sampleImage?.preview) {
-        URL.revokeObjectURL(wizardData.sampleImage.preview);
-      }
-      if (wizardData.houseImage?.preview) {
-        URL.revokeObjectURL(wizardData.houseImage.preview);
-      }
-    };
-  }, [wizardData.sampleImage?.preview, wizardData.houseImage?.preview]);
-
-  const restartWizard = () => {
-    setWizardData((prev) => {
-      if (prev.sampleImage?.preview) {
-        URL.revokeObjectURL(prev.sampleImage.preview);
-      }
-      if (prev.houseImage?.preview) {
-        URL.revokeObjectURL(prev.houseImage.preview);
-      }
-      return createInitialData();
-    });
-    setStepIndex(0);
-  };
-
-  const handleSwitchAuthMode = (mode, options = {}) => {
-    setAuthMode(mode);
-    setAuthNotice(options.notice ?? "");
-    setAuthPrefillEmail(options.prefillEmail ?? "");
-  };
-
-  const handleLogin = ({ email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const matchedUser = users.find(
-      (candidate) =>
-        candidate.email === normalizedEmail && candidate.password === password
+function ProtectedRoute() {
+  const { user } = useAuth();
+  const location = useLocation();
+  if (!user) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location.pathname }}
+      />
     );
+  }
+  return <Outlet />;
+}
 
-    if (!matchedUser) {
-      return {
-        ok: false,
-        message: "Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.",
-      };
-    }
+function DashboardLayout() {
+  const { user, isAdmin, logout } = useAuth();
+  const {
+    steps,
+    stepIndex,
+    restartWizard,
+  } = useWizard();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    setUser({
-      email: matchedUser.email,
-      role: matchedUser.role,
-      name: matchedUser.name,
-    });
-    setActiveView("wizard");
-    setAuthMode("login");
-    setAuthNotice("");
-    setAuthPrefillEmail("");
-    restartWizard();
+  const isWizardPath = location.pathname.startsWith("/wizard");
+  const isHistoryPath = location.pathname.startsWith("/history");
+  const isAdminPath = location.pathname.startsWith("/admin");
 
-    return { ok: true };
-  };
+  const currentStep = steps[stepIndex] ?? steps[0];
+  const wizardLink = `${WIZARD_BASE_PATH}/${currentStep.route}`;
 
-  const handleRegister = ({ name, email, password }) => {
-    const normalizedEmail = email.toLowerCase();
-    const exists = users.some((item) => item.email === normalizedEmail);
-    if (exists) {
-      return {
-        ok: false,
-        message: "Email này đã tồn tại trong hệ thống.",
-      };
-    }
+  let headerTitle = "Trợ lý thiết kế ngoại thất thông minh";
+  let headerSubtitle =
+    "Hoàn thiện mặt tiền theo phong cách bạn mong muốn trong bốn bước rõ ràng.";
 
-    const newUser = {
-      email: normalizedEmail,
-      password,
-      role: "designer",
-      name,
-    };
+  if (isHistoryPath) {
+    headerTitle =
+      user.role === "admin" ? "Lịch sử dự án" : "Lịch sử dự án của tôi";
+    headerSubtitle =
+      "Theo dõi các phiên gợi ý đã lưu để tiếp tục trao đổi với khách hàng.";
+  } else if (isAdminPath) {
+    headerTitle = "Bảng điều khiển quản trị";
+    headerSubtitle =
+      "Theo dõi và quản lý các yêu cầu thiết kế mà đội ngũ đã khởi tạo.";
+  }
 
-    setUsers((prev) => [...prev, newUser]);
-
-    return { ok: true, email: normalizedEmail };
-  };
+  const navButtonClass = (active) =>
+    `rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+      active
+        ? "bg-emerald-500 text-emerald-950"
+        : "border border-slate-700 text-slate-300 hover:border-emerald-400/60 hover:text-emerald-200"
+    }`;
 
   const handleLogout = () => {
     restartWizard();
-    setUser(null);
-    setActiveView("wizard");
-    setAuthMode("login");
-    setAuthNotice("");
-    setAuthPrefillEmail("");
+    logout();
+    navigate("/login", { replace: true });
   };
-
-  const handleSampleSelected = (file) => {
-    setWizardData((prev) => {
-      if (prev.sampleImage?.preview) {
-        URL.revokeObjectURL(prev.sampleImage.preview);
-      }
-      if (!file) {
-        return { ...prev, sampleImage: null };
-      }
-      return {
-        ...prev,
-        sampleImage: {
-          file,
-          preview: URL.createObjectURL(file),
-        },
-      };
-    });
-    if (file && stepIndex === 0) {
-      setStepIndex(1);
-    }
-  };
-
-  const handleHouseSelected = (file) => {
-    setWizardData((prev) => {
-      if (prev.houseImage?.preview) {
-        URL.revokeObjectURL(prev.houseImage.preview);
-      }
-      if (!file) {
-        return { ...prev, houseImage: null };
-      }
-      return {
-        ...prev,
-        houseImage: {
-          file,
-          preview: URL.createObjectURL(file),
-        },
-      };
-    });
-  };
-
-  const handleRequirementsChange = (nextRequirements) => {
-    setWizardData((prev) => ({
-      ...prev,
-      requirements: nextRequirements,
-    }));
-  };
-
-  const goNext = () => {
-    setStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
-  };
-
-  const goBack = () => {
-    setStepIndex((prev) => Math.max(prev - 1, 0));
-  };
-
-  const handleSaveHistory = (notes) => {
-    const entry = {
-      id: createHistoryId(),
-      createdAt: new Date().toISOString(),
-      style: wizardData.requirements.style,
-      colorPalette: wizardData.requirements.colorPalette,
-      decorItems: wizardData.requirements.decorItems,
-      aiSuggestions: wizardData.requirements.aiSuggestions,
-      sampleImageName: wizardData.sampleImage?.file?.name ?? "",
-      houseImageName: wizardData.houseImage?.file?.name ?? "",
-      notes,
-      status: "pending",
-      createdBy: user?.email ?? "demo@ngoai-that.ai",
-      createdByName: user?.name ?? "Khách demo",
-    };
-    setHistory((prev) => [entry, ...prev]);
-  };
-
-  const handleUpdateHistoryStatus = (entryId, status) => {
-    setHistory((prev) =>
-      prev.map((entry) =>
-        entry.id === entryId
-          ? { ...entry, status, updatedAt: new Date().toISOString() }
-          : entry
-      )
-    );
-  };
-
-  const handleForceClearHistory = () => {
-    if (typeof window !== "undefined") {
-      const confirmed = window.confirm(
-        "Xóa toàn bộ lịch sử demo? Thao tác này không thể hoàn tác."
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
-    setHistory([]);
-  };
-
-  const recommendations = useMemo(() => {
-    const items = [];
-    const { requirements, sampleImage, houseImage } = wizardData;
-
-    if (requirements.colorPalette) {
-      items.push(
-        `Giữ bảng màu chủ đạo "${requirements.colorPalette}" và tinh chỉnh độ bão hòa để hài hòa với ánh sáng hiện trạng.`
-      );
-    } else {
-      items.push(
-        "Đề xuất sử dụng tông màu trung tính (trắng kem, ghi nhạt) kết hợp điểm nhấn gỗ để tạo cảm giác ấm áp."
-      );
-    }
-
-    if (requirements.decorItems) {
-      items.push(
-        `Bổ sung các chi tiết trang trí: ${requirements.decorItems}. Ưu tiên bố trí cân đối ở ban công và mặt đứng.`
-      );
-    }
-
-    switch (requirements.style) {
-      case "Hiện đại":
-        items.push(
-          "Tăng mảng kính và lam nhôm ngang để nhấn mạnh đường nét hiện đại, kết hợp ánh sáng âm trần mạnh."
-        );
-        break;
-      case "Tân cổ điển":
-        items.push(
-          "Thêm phào chỉ tinh gọn và hệ cột cân đối, sử dụng đèn tường cổ điển để tạo cảm giác sang trọng."
-        );
-        break;
-      case "Scandinavian":
-        items.push(
-          "Ưu tiên bề mặt gỗ sáng, cửa kính lớn và bồn cây nhỏ để tăng độ thoáng đãng đặc trưng Bắc Âu."
-        );
-        break;
-      case "Resort nhiệt đới":
-        items.push(
-          "Bố trí lam gỗ dọc, mái hiên lớn và mảng xanh rủ nhằm tạo cảm giác nghỉ dưỡng thoáng mát."
-        );
-        break;
-      default:
-        break;
-    }
-
-    if (requirements.aiSuggestions) {
-      items.push(
-        `Lưu ý riêng: ${requirements.aiSuggestions}. Hệ thống sẽ ưu tiên chi tiết này trong giai đoạn render.`
-      );
-    }
-
-    if (sampleImage && houseImage) {
-      items.push(
-        "AI sẽ đồng bộ góc chụp và ánh sáng giữa ảnh mẫu và ảnh hiện trạng để tăng mức độ tương đồng."
-      );
-    }
-
-    items.push(
-      "Khi có kết quả, bạn có thể đề nghị thêm phương án khác (ví dụ: biến thể màu sắc hoặc vật liệu)."
-    );
-
-    return items;
-  }, [wizardData]);
-
-  const currentStep = steps[stepIndex]?.id ?? "sample";
-  const visibleHistory =
-    user?.role === "admin"
-      ? history
-      : history.filter((entry) => entry.createdBy === user?.email);
-
-  let stepContent = null;
-  if (currentStep === "sample") {
-    stepContent = (
-      <UploadSampleStep
-        sampleImage={wizardData.sampleImage}
-        onSampleSelected={handleSampleSelected}
-        onNext={goNext}
-      />
-    );
-  } else if (currentStep === "requirements") {
-    stepContent = (
-      <SelectRequirementsStep
-        requirements={wizardData.requirements}
-        onChange={handleRequirementsChange}
-        onBack={goBack}
-        onNext={goNext}
-      />
-    );
-  } else if (currentStep === "house") {
-    stepContent = (
-      <UploadHouseStep
-        houseImage={wizardData.houseImage}
-        sampleImage={wizardData.sampleImage}
-        requirements={wizardData.requirements}
-        onHouseSelected={handleHouseSelected}
-        onBack={goBack}
-        onNext={goNext}
-      />
-    );
-  } else if (currentStep === "result") {
-    stepContent = (
-      <ResultStep
-        data={wizardData}
-        recommendations={recommendations}
-        history={visibleHistory}
-        onSaveHistory={handleSaveHistory}
-        onBack={goBack}
-        onRestart={restartWizard}
-      />
-    );
-  }
-
-  if (!user) {
-    if (authMode === "register") {
-      return (
-        <RegisterPage
-          onRegister={handleRegister}
-          onSwitchMode={handleSwitchAuthMode}
-        />
-      );
-    }
-
-    return (
-      <LoginPage
-        onLogin={handleLogin}
-        onSwitchMode={handleSwitchAuthMode}
-        prefillEmail={authPrefillEmail}
-        notice={authNotice}
-      />
-    );
-  }
-
-  const headerTitle =
-    activeView === "admin"
-      ? "Bảng điều khiển quản trị"
-      : "Trợ lý thiết kế ngoại thất thông minh";
-
-  const headerSubtitle =
-    activeView === "admin"
-      ? "Theo dõi và quản lý các yêu cầu thiết kế mà đội ngũ đã khởi tạo."
-      : "Hoàn thiện mặt tiền theo phong cách bạn mong muốn trong bốn bước rõ ràng.";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -492,35 +133,23 @@ function App() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setActiveView("wizard")}
-                className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-                  activeView === "wizard"
-                    ? "bg-emerald-500 text-emerald-950"
-                    : "border border-slate-700 text-slate-300 hover:border-emerald-400/60 hover:text-emerald-200"
-                }`}
+                onClick={() => navigate(wizardLink)}
+                className={navButtonClass(isWizardPath)}
               >
                 Wizard
               </button>
               <button
                 type="button"
-                onClick={() => setActiveView("history")}
-                className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-                  activeView === "history"
-                    ? "bg-emerald-500 text-emerald-950"
-                    : "border border-slate-700 text-slate-300 hover:border-emerald-400/60 hover:text-emerald-200"
-                }`}
+                onClick={() => navigate("/history")}
+                className={navButtonClass(isHistoryPath)}
               >
                 Lịch sử
               </button>
-              {user.role === "admin" ? (
+              {isAdmin ? (
                 <button
                   type="button"
-                  onClick={() => setActiveView("admin")}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-                    activeView === "admin"
-                      ? "bg-emerald-500 text-emerald-950"
-                      : "border border-slate-700 text-slate-300 hover:border-emerald-400/60 hover:text-emerald-200"
-                  }`}
+                  onClick={() => navigate("/admin")}
+                  className={navButtonClass(isAdminPath)}
                 >
                   Admin
                 </button>
@@ -535,7 +164,7 @@ function App() {
             </div>
           </div>
         </div>
-        {activeView === "wizard" ? (
+        {isWizardPath ? (
           <div className="border-t border-slate-900/60">
             <div className="mx-auto flex items-center gap-4 px-6 py-4 lg:max-w-5xl">
               {steps.map((step, index) => {
@@ -577,29 +206,198 @@ function App() {
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-6 py-10">
-        {activeView === "wizard" ? (
-          stepContent
-        ) : activeView === "history" ? (
-          <HistoryViewer
-            entries={visibleHistory}
-            title={
-              user.role === "admin" ? "Lịch sử dự án" : "Lịch sử dự án của tôi"
-            }
-            emptyMessage={
-              user.role === "admin"
-                ? "Chưa có dự án nào được lưu."
-                : "Bạn chưa lưu dự án nào. Hãy tạo đề xuất trong Wizard để bắt đầu."
-            }
-          />
-        ) : (
-          <AdminDashboard
-            history={history}
-            onUpdateStatus={handleUpdateHistoryStatus}
-            onForceClear={handleForceClearHistory}
-          />
-        )}
+        <AnimatedOutlet />
       </main>
     </div>
+  );
+}
+
+function WizardLayout() {
+  const { setStepIndex } = useWizard();
+  const location = useLocation();
+
+  const slug = location.pathname.split("/").pop() ?? WIZARD_STEPS[0].route;
+
+  const stepPosition = WIZARD_STEPS.findIndex((step) => step.route === slug);
+
+  useEffect(() => {
+    if (stepPosition >= 0) {
+      setStepIndex(stepPosition);
+    }
+  }, [stepPosition, setStepIndex]);
+
+  return <AnimatedOutlet />;
+}
+
+function UploadSampleRoute() {
+  const { wizardData, selectSample, uploadSample, session, loading, errors } =
+    useWizard();
+  const navigate = useNavigate();
+
+  const handleNext = async () => {
+    const ok = await uploadSample();
+    if (ok) {
+      navigate(`${WIZARD_BASE_PATH}/${WIZARD_STEPS[1].route}`);
+    }
+  };
+  const handleBack = () => {};
+
+  return (
+    <UploadSampleStep
+      sampleImage={wizardData.sampleImage}
+      onSampleSelected={selectSample}
+      onNext={handleNext}
+      onBack={handleBack}
+      disableBack
+      loading={loading.sample}
+      error={errors.sample}
+      extractedLayout={session.extractedLayout}
+      averageColor={session.averageColor}
+    />
+  );
+}
+
+function SelectRequirementsRoute() {
+  const {
+    wizardData,
+    updateRequirements,
+    submitRequirements,
+    session,
+    loading,
+    errors,
+  } = useWizard();
+  const navigate = useNavigate();
+
+  const handleBack = () =>
+    navigate(`${WIZARD_BASE_PATH}/${WIZARD_STEPS[0].route}`);
+  const handleNext = async () => {
+    const ok = await submitRequirements();
+    if (ok) {
+      navigate(`${WIZARD_BASE_PATH}/${WIZARD_STEPS[2].route}`);
+    }
+  };
+
+  return (
+    <SelectRequirementsStep
+      requirements={wizardData.requirements}
+      onChange={updateRequirements}
+      onBack={handleBack}
+      onNext={handleNext}
+      loading={loading.requirements}
+      error={errors.requirements}
+      stylePlan={session.stylePlan}
+    />
+  );
+}
+
+function UploadHouseRoute() {
+  const {
+    wizardData,
+    selectHouse,
+    submitFinal,
+    loading,
+    errors,
+    session,
+  } = useWizard();
+  const navigate = useNavigate();
+
+  const handleBack = () =>
+    navigate(`${WIZARD_BASE_PATH}/${WIZARD_STEPS[1].route}`);
+  const handleNext = async () => {
+    const ok = await submitFinal();
+    if (ok) {
+      navigate(`${WIZARD_BASE_PATH}/${WIZARD_STEPS[3].route}`);
+    }
+  };
+
+  return (
+    <UploadHouseStep
+      houseImage={wizardData.houseImage}
+      sampleImage={wizardData.sampleImage}
+      requirements={wizardData.requirements}
+      stylePlan={session.stylePlan}
+      onHouseSelected={selectHouse}
+      onBack={handleBack}
+      onNext={handleNext}
+      loading={loading.final}
+      error={errors.final}
+    />
+  );
+}
+
+function ResultRoute() {
+  const {
+    wizardData,
+    recommendations,
+    visibleHistory,
+    saveHistory,
+    restartWizard,
+  } = useWizard();
+  const navigate = useNavigate();
+
+  const handleBack = () =>
+    navigate(`${WIZARD_BASE_PATH}/${WIZARD_STEPS[2].route}`);
+
+  const handleRestart = () => {
+    restartWizard();
+    navigate(FIRST_WIZARD_STEP_PATH, { replace: true });
+  };
+
+  return (
+    <ResultStep
+      data={wizardData}
+      recommendations={recommendations}
+      history={visibleHistory}
+      onSaveHistory={saveHistory}
+      onBack={handleBack}
+      onRestart={handleRestart}
+    />
+  );
+}
+
+function HistoryRoute() {
+  const { visibleHistory } = useWizard();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  return (
+    <HistoryViewer
+      entries={visibleHistory}
+      title={isAdmin ? "Lịch sử dự án" : "Lịch sử dự án của tôi"}
+      emptyMessage={
+        isAdmin
+          ? "Chưa có dự án nào được lưu."
+          : "Bạn chưa lưu dự án nào. Hãy tạo đề xuất trong Wizard để bắt đầu."
+      }
+    />
+  );
+}
+
+function AdminRoute() {
+  const { isAdmin } = useAuth();
+  const { history, updateHistoryStatus, clearHistory } = useWizard();
+
+  if (!isAdmin) {
+    return <Navigate to={FIRST_WIZARD_STEP_PATH} replace />;
+  }
+
+  const handleForceClear = () => {
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(
+        "Xóa toàn bộ lịch sử demo? Thao tác này không thể hoàn tác."
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    clearHistory();
+  };
+
+  return (
+    <AdminDashboard
+      history={history}
+      onUpdateStatus={updateHistoryStatus}
+      onForceClear={handleForceClear}
+    />
   );
 }
 

@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import WizardNavigation from "./WizardNavigation.jsx";
 
 function UploadHouseStep({
   houseImage,
@@ -7,6 +8,9 @@ function UploadHouseStep({
   onHouseSelected,
   onBack,
   onNext,
+  loading = false,
+  error = null,
+  stylePlan = null,
 }) {
   const fileInputRef = useRef(null);
 
@@ -67,7 +71,8 @@ function UploadHouseStep({
               <img
                 src={houseImage.preview}
                 alt="Ảnh nhà hiện trạng"
-                className="max-h-80 w-full rounded-lg object-cover shadow-lg"
+                className="block max-w-full rounded-lg shadow-lg"
+                style={{ maxHeight: "calc(100vh - 320px)", objectFit: "contain" }}
               />
             </div>
           ) : null}
@@ -110,30 +115,39 @@ function UploadHouseStep({
               <img
                 src={sampleImage.preview}
                 alt="Ảnh mẫu tham chiếu"
-                className="mt-2 max-h-40 w-full rounded-lg object-cover"
+                className="mt-2 block max-w-full rounded-lg"
+                style={{ maxHeight: "200px", objectFit: "contain" }}
               />
+            </div>
+          ) : null}
+
+          {stylePlan?.combined?.length ? (
+            <div className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 p-4 text-xs text-emerald-100">
+              <p className="font-semibold text-emerald-200">Từ khóa phân tích</p>
+              <p className="mt-1">{stylePlan.combined.join(", ")}</p>
+              {stylePlan.promptHint ? (
+                <p className="mt-2 uppercase tracking-wide text-emerald-300">
+                  Prompt: {stylePlan.promptHint}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>
       </div>
 
-      <div className="flex justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-lg border border-slate-600 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-400 hover:text-emerald-200"
-        >
-          Quay lại
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!houseImage}
-          className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-        >
-          Hoàn tất phân tích
-        </button>
-      </div>
+      {error ? (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          {error}
+        </p>
+      ) : null}
+
+      <WizardNavigation
+        onBack={onBack}
+        onNext={onNext}
+        disableNext={!houseImage}
+        nextLabel="Hoàn tất phân tích"
+        nextLoading={loading}
+      />
     </div>
   );
 }
