@@ -1,18 +1,41 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { generateFinal } from "../api/wizard";
 
-function UploadHouseStep({
-  houseImage,
-  sampleImage,
-  requirements,
-  onHouseSelected,
-  onBack,
-  onNext,
-}) {
+
+function UploadHouseStep({ houseImage, sampleImage, requirements, onHouseSelected, onBack, onNext, tempId }) {
   const fileInputRef = useRef(null);
+  const [loading, setLoading] = useState(false);
 
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] ?? null;
-    onHouseSelected(file);
+    if (file) {
+      onHouseSelected(file);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!tempId || !houseImage?.file) {
+      alert("Thiếu dữ liệu ảnh hoặc tempId!");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await generateFinal(tempId, houseImage.file, requirements);
+      console.log("[GENERATE FINAL]", res);
+
+      if (res.ok) {
+        //alert("Sinh ảnh hoàn thiện thành công!");
+        onNext(); // sang bước kết quả
+      } else {
+        alert("Lỗi khi sinh ảnh hoàn thiện: " + (res.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Generate-final error:", err);
+      alert("Không thể kết nối đến API /generate-final!");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -127,11 +150,11 @@ function UploadHouseStep({
         </button>
         <button
           type="button"
-          onClick={onNext}
+          onClick={handleGenerate}
           disabled={!houseImage}
           className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
         >
-          Hoàn tất phân tích
+          {loading ? "Đang xử lý..." : "Hoàn tất phân tích"}
         </button>
       </div>
     </div>

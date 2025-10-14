@@ -14,6 +14,10 @@ function ResultStep({
   const houseName = data.houseImage?.file?.name ?? "Ảnh nhà hiện trạng";
   const sampleName = data.sampleImage?.file?.name ?? "Ảnh mẫu tham chiếu";
 
+  // 🟢 Dữ liệu kết quả từ backend (generate-final)
+  const resultUrl = data.result?.resultImageUrl ?? "";
+  const resultDesc = data.result?.description ?? "Chưa có mô tả từ hệ thống.";
+
   const formattedHistory = useMemo(
     () =>
       history.map((entry) => ({
@@ -36,12 +40,32 @@ function ResultStep({
           4. Kết quả gợi ý ngoại thất
         </h2>
         <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-          Bạn có thể tải xuống ghi chú, lưu vào lịch sử dự án và gửi lại yêu cầu
-          mới nếu cần tinh chỉnh.
+          Đây là kết quả được AI xử lý từ ảnh nhà của bạn và phong cách đã chọn.
         </p>
       </div>
 
+      {/* 🟢 Hiển thị kết quả render từ Cloudinary */}
+      {resultUrl ? (
+        <div className="rounded-xl border border-emerald-500/40 bg-slate-800/40 p-4 text-center">
+          <p className="mb-2 text-sm text-emerald-300 font-medium">
+            Ảnh kết quả được tạo bởi AI
+          </p>
+          <img
+            src={resultUrl}
+            alt="Ảnh kết quả AI"
+            className="mx-auto max-h-[480px] w-full rounded-lg object-contain shadow-lg"
+          />
+          <p className="mt-3 text-sm text-slate-300 italic">{resultDesc}</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-slate-600 bg-slate-800/40 p-8 text-center text-slate-400">
+          Chưa có ảnh kết quả. Vui lòng hoàn tất bước "Upload ảnh nhà" để sinh
+          thiết kế.
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
+        {/* Thông tin tóm tắt */}
         <div className="space-y-4 rounded-xl border border-slate-600 bg-slate-800/40 p-5">
           <p className="text-xs uppercase tracking-wide text-slate-400">
             Thông tin tổng quan
@@ -66,7 +90,7 @@ function ResultStep({
           </ul>
 
           <div className="grid gap-4 text-sm">
-            {data.sampleImage?.preview ? (
+            {data.sampleImage?.preview && (
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-400">
                   Ảnh mẫu
@@ -78,11 +102,11 @@ function ResultStep({
                   className="mt-2 max-h-48 w-full rounded-lg object-cover"
                 />
               </div>
-            ) : null}
-            {data.houseImage?.preview ? (
+            )}
+            {data.houseImage?.preview && (
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-400">
-                  Ảnh nhà sẽ chỉnh sửa
+                  Ảnh nhà gốc
                 </p>
                 <p className="text-xs text-slate-500">{houseName}</p>
                 <img
@@ -91,10 +115,11 @@ function ResultStep({
                   className="mt-2 max-h-48 w-full rounded-lg object-cover"
                 />
               </div>
-            ) : null}
+            )}
           </div>
         </div>
 
+        {/* Gợi ý & lưu */}
         <div className="space-y-4">
           <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-5">
             <p className="text-sm font-semibold text-emerald-200">
@@ -110,14 +135,15 @@ function ResultStep({
             </ul>
           </div>
 
+          {/* Ghi chú người dùng */}
           <label className="flex flex-col gap-2 rounded-xl border border-slate-600 bg-slate-800/40 p-4">
             <span className="text-sm font-medium text-slate-200">
-              Ghi chú bổ sung (ví dụ: chỉnh lại ban công tầng 2, tăng cây xanh)
+              Ghi chú bổ sung (ví dụ: chỉnh lại ban công, tăng cây xanh)
             </span>
             <textarea
               rows={3}
               value={notes}
-              onChange={(event) => setNotes(event.target.value)}
+              onChange={(e) => setNotes(e.target.value)}
               className="rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
             />
           </label>
@@ -149,6 +175,7 @@ function ResultStep({
         </div>
       </div>
 
+      {/* Lịch sử lưu */}
       <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-5">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-slate-200 uppercase tracking-wide">

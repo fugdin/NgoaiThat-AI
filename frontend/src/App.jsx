@@ -7,6 +7,7 @@ import ResultStep from "./components/ResultStep.jsx";
 import SelectRequirementsStep from "./components/SelectRequirementsStep.jsx";
 import UploadHouseStep from "./components/UploadHouseStep.jsx";
 import UploadSampleStep from "./components/UploadSampleStep.jsx";
+import { uploadSample, generateStyle, generateFinal, getHistories } from "./api/wizard";
 
 const steps = [
   { id: "sample", label: "Ảnh mẫu" },
@@ -143,15 +144,32 @@ function App() {
   }, [activeView, user]);
 
   useEffect(() => {
-    return () => {
-      if (wizardData.sampleImage?.preview) {
+  return () => {
+    setTimeout(() => {
+      if (wizardData.sampleImage?.preview)
         URL.revokeObjectURL(wizardData.sampleImage.preview);
-      }
-      if (wizardData.houseImage?.preview) {
+      if (wizardData.houseImage?.preview)
         URL.revokeObjectURL(wizardData.houseImage.preview);
-      }
-    };
-  }, [wizardData.sampleImage?.preview, wizardData.houseImage?.preview]);
+    }, 500); // ✅ Delay 0.5s để React render xong rồi mới revoke
+  };
+}, [wizardData.sampleImage?.preview, wizardData.houseImage?.preview]);
+
+
+  useEffect(() => {
+  const fetchHistories = async () => {
+    try {
+      const res = await getHistories(1);
+      console.log("Histories API:", res);
+    } catch (err) {
+      console.error("Lỗi khi tải lịch sử:", err);
+    }
+  };
+
+  if (activeView === "history") {
+    fetchHistories();
+  }
+}, [activeView]);
+
 
   const restartWizard = () => {
     setWizardData((prev) => {
@@ -231,26 +249,35 @@ function App() {
     setAuthPrefillEmail("");
   };
 
-  const handleSampleSelected = (file) => {
-    setWizardData((prev) => {
-      if (prev.sampleImage?.preview) {
-        URL.revokeObjectURL(prev.sampleImage.preview);
-      }
-      if (!file) {
-        return { ...prev, sampleImage: null };
-      }
+// Trong App.jsx
+const handleSampleSelected = (fileData) => {
+  setWizardData((prev) => {
+    if (prev.sampleImage?.preview) {
+      URL.revokeObjectURL(prev.sampleImage.preview);
+    }
+
+    // ✅ Nếu có tempId, luôn lưu lại vào wizardData
+    if (fileData?.tempId) {
       return {
         ...prev,
-        sampleImage: {
-          file,
-          preview: URL.createObjectURL(file),
-        },
+        tempId: fileData.tempId,
+        sampleImage: fileData,
       };
-    });
-    if (file && stepIndex === 0) {
-      setStepIndex(1);
     }
-  };
+
+    // Nếu chỉ là file thô (chưa upload xong)
+    if (fileData?.file) {
+      return {
+        ...prev,
+        sampleImage: fileData,
+      };
+    }
+
+    return prev;
+  });
+};
+
+
 
   const handleHouseSelected = (file) => {
     setWizardData((prev) => {
@@ -284,24 +311,17 @@ function App() {
   const goBack = () => {
     setStepIndex((prev) => Math.max(prev - 1, 0));
   };
+  
 
-  const handleSaveHistory = (notes) => {
-    const entry = {
-      id: createHistoryId(),
-      createdAt: new Date().toISOString(),
-      style: wizardData.requirements.style,
-      colorPalette: wizardData.requirements.colorPalette,
-      decorItems: wizardData.requirements.decorItems,
-      aiSuggestions: wizardData.requirements.aiSuggestions,
-      sampleImageName: wizardData.sampleImage?.file?.name ?? "",
-      houseImageName: wizardData.houseImage?.file?.name ?? "",
-      notes,
-      status: "pending",
-      createdBy: user?.email ?? "demo@ngoai-that.ai",
-      createdByName: user?.name ?? "Khách demo",
-    };
-    setHistory((prev) => [entry, ...prev]);
-  };
+  const handleSaveHistory = async (notes) => {
+  try {
+    const res = await getHistories(1);
+    if (!res.ok) throw new Error(res.message);
+    console.log("Histories:", res.data.items);
+  } catch (err) {
+    console.error("Không thể lấy lịch sử:", err.message);
+  }
+};
 
   const handleUpdateHistoryStatus = (entryId, status) => {
     setHistory((prev) =>
@@ -407,6 +427,7 @@ function App() {
   } else if (currentStep === "requirements") {
     stepContent = (
       <SelectRequirementsStep
+        tempId={wizardData.tempId} 
         requirements={wizardData.requirements}
         onChange={handleRequirementsChange}
         onBack={goBack}
@@ -419,6 +440,7 @@ function App() {
         houseImage={wizardData.houseImage}
         sampleImage={wizardData.sampleImage}
         requirements={wizardData.requirements}
+        tempId={wizardData.tempId}
         onHouseSelected={handleHouseSelected}
         onBack={goBack}
         onNext={goNext}
