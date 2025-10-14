@@ -1,25 +1,62 @@
-const STYLE_OPTIONS = [
-  {
-    value: "Hiện đại",
-    description: "Đường nét tinh giản, vật liệu kính và kim loại, phối màu trung tính.",
-  },
-  {
-    value: "Tân cổ điển",
-    description: "Nhấn mạnh chi tiết phào chỉ, mái vòm mềm mại, màu sắc thanh lịch.",
-  },
-  {
-    value: "Scandinavian",
-    description: "Tông sáng, gỗ tự nhiên, đề cao ánh sáng và sự tối giản ấm áp.",
-  },
-  {
-    value: "Resort nhiệt đới",
-    description: "Nhiều mảng xanh, vật liệu gần gũi thiên nhiên, nhấn mạnh ban công mở.",
-  },
-];
+import { useState } from "react";
+import { generateStyle } from "../api/wizard";
 
-function SelectRequirementsStep({ requirements, onChange, onBack, onNext }) {
+function SelectRequirementsStep({ requirements, onChange, onBack, onNext, tempId }) {
+  const [loading, setLoading] = useState(false);
+
   const handleFieldChange = (field) => (event) => {
     onChange({ ...requirements, [field]: event.target.value });
+  };
+
+  const STYLE_OPTIONS = [
+    {
+      value: "Hiện đại",
+      description:
+        "Đường nét tinh giản, vật liệu kính và kim loại, phối màu trung tính.",
+    },
+    {
+      value: "Tân cổ điển",
+      description:
+        "Nhấn mạnh chi tiết phào chỉ, mái vòm mềm mại, màu sắc thanh lịch.",
+    },
+    {
+      value: "Scandinavian",
+      description:
+        "Tông sáng, gỗ tự nhiên, đề cao ánh sáng và sự tối giản ấm áp.",
+    },
+    {
+      value: "Resort nhiệt đới",
+      description:
+        "Nhiều mảng xanh, vật liệu gần gũi thiên nhiên, nhấn mạnh ban công mở.",
+    },
+  ];
+
+  // ✅ Gọi API khi người dùng nhấn "Tiếp tục"
+  const handleNext = async () => {
+    if (!tempId) {
+      alert("Thiếu tempId — vui lòng tải ảnh mẫu trước!");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const reqArray = Object.values(requirements);
+      const res = await generateStyle(tempId, reqArray);
+
+      console.log("[GENERATE STYLE]", res);
+
+      if (res.ok) {
+        //alert("Đã tạo kế hoạch phong cách thành công!");
+        onNext(); // sang bước upload ảnh nhà
+      } else {
+        alert("Lỗi khi tạo phong cách: " + (res.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Generate-style error:", err);
+      alert("Không thể kết nối đến API /generate-style!");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,7 +110,9 @@ function SelectRequirementsStep({ requirements, onChange, onBack, onNext }) {
               <button
                 key={option.value}
                 type="button"
-                onClick={() => onChange({ ...requirements, style: option.value })}
+                onClick={() =>
+                  onChange({ ...requirements, style: option.value })
+                }
                 className={`rounded-xl border p-4 text-left transition ${
                   isActive
                     ? "border-emerald-400 bg-emerald-500/10 text-emerald-200 shadow"
@@ -98,7 +137,7 @@ function SelectRequirementsStep({ requirements, onChange, onBack, onNext }) {
           rows={3}
           value={requirements.aiSuggestions}
           onChange={handleFieldChange("aiSuggestions")}
-          placeholder="Ví dụ: ưu tiên gợi ý ban công xanh, tận dụng ánh sáng tự nhiên, giữ độ cao mái như ảnh mẫu."
+          placeholder="Ví dụ: ưu tiên ban công xanh, tận dụng ánh sáng tự nhiên, giữ độ cao mái như ảnh mẫu."
           className="rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
         />
       </label>
@@ -113,10 +152,11 @@ function SelectRequirementsStep({ requirements, onChange, onBack, onNext }) {
         </button>
         <button
           type="button"
-          onClick={onNext}
-          className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400"
+          onClick={handleNext}
+          disabled={loading}
+          className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:opacity-50"
         >
-          Tiếp tục
+          {loading ? "Đang xử lý..." : "Tiếp tục"}
         </button>
       </div>
     </div>

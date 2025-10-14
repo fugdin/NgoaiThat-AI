@@ -1,17 +1,62 @@
 import { useRef } from "react";
+import { uploadSample, generateStyle, generateFinal } from "../api/wizard";
+
+
 
 function UploadSampleStep({ sampleImage, onSampleSelected, onNext }) {
   const fileInputRef = useRef(null);
 
-  const handleFileChange = (event) => {
-    const file = event.target.files?.[0] ?? null;
-    onSampleSelected(file);
+  const handleFileChange = async (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) {
+      console.warn("Không tìm thấy file hợp lệ.");
+      return;
+    }
+
+    // ✅ Kiểm tra kiểu dữ liệu
+    if (!(file instanceof Blob)) {
+      console.error("Giá trị không phải File hoặc Blob:", file);
+      return;
+    }
+
+    let previewUrl = null;
+    try {
+      previewUrl = URL.createObjectURL(file);
+    } catch (err) {
+      console.error("Lỗi tạo preview URL:", err);
+      previewUrl = null;
+    }
+
+    // Tạm thời cập nhật preview để hiển thị ảnh
+    onSampleSelected({ file, preview: previewUrl });
+
+    // ✅ Upload thật lên backend
+    try {
+      const res = await uploadSample(file);
+      console.log("[UPLOAD SAMPLE]", res);
+
+      if (res.ok && res.data?.sampleImageUrl) {
+        onSampleSelected({
+          file,
+          preview: previewUrl,
+          tempId: res.data.tempId,
+          sampleUrl: res.data.sampleImageUrl,
+        });
+      } else {
+        alert("Upload thất bại: " + (res.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("UploadSample Error:", err);
+      alert("Không thể upload ảnh mẫu. Vui lòng thử lại!");
+    }
   };
 
   const handleDrop = (event) => {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0] ?? null;
-    onSampleSelected(file);
+    if (file) {
+      handleFileChange({ target: { files: [file] } });
+    }
   };
 
   const preventDefaults = (event) => {
@@ -79,18 +124,18 @@ function UploadSampleStep({ sampleImage, onSampleSelected, onNext }) {
         </div>
       </div>
 
-      {sampleImage?.preview ? (
-        <div>
-          <p className="text-sm font-medium text-slate-300 mb-3">
-            Xem trước ảnh mẫu
-          </p>
-          <img
-            src={sampleImage.preview}
-            alt="Ảnh mẫu"
-            className="max-h-80 w-full rounded-lg object-cover shadow-lg"
-          />
-        </div>
-      ) : null}
+{typeof sampleImage?.preview === "string" && sampleImage.preview.startsWith("blob:") && (
+  <div>
+    <p className="text-sm font-medium text-slate-300 mb-3">Xem trước ảnh mẫu</p>
+    <img
+      src={sampleImage.preview}
+      alt="Ảnh mẫu"
+      className="max-h-80 w-full rounded-lg object-cover shadow-lg"
+    />
+  </div>
+)}
+
+
 
       <div className="flex justify-end">
         <button
