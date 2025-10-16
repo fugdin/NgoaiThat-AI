@@ -49,111 +49,98 @@ router.post("/upload-sample", upload.single("sample"), async (req, res) => {
  * 2) Gửi yêu cầu thiết kế → kết hợp mock
  * POST /api/generate-style { tempId, requirements: [] }
  */
-router.post("/generate-style", express.json(), async (req, res) => {
+router.post("/generate-style", async (req, res) => {
   try {
-    const { tempId, requirements = [] } = req.body || {};
-    if (!tempId || !SESS.has(tempId)) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "tempId không hợp lệ" });
+    const { tempId, requirements } = req.body;
+
+    if (!tempId || !requirements) {
+      return res.status(400).json({ ok: false, message: "Thiếu dữ liệu!" });
     }
-    const ctx = SESS.get(tempId);
 
-    // Mock “kế hoạch phong cách”
-    const stylePlan = {
-      combined: [
-        ...(ctx.extractedLayout?.styleKeywords || []),
-        ...requirements,
-      ],
-      promptHint: `Modern clean lines with ${requirements.join(", ")}`,
-    };
+    const pool = await getPool();
+    await pool.request()
+      .input("UserId", 1)
+      .input("InputDesc", requirements.aiSuggestions || "")
+      .input("Style", requirements.style || "")
+      .input("Palette", requirements.colorPalette || "")
+      .query(`
+        INSERT INTO Generations (UserId, InputDesc, Style, Palette, CreatedAt)
+        VALUES (@UserId, @InputDesc, @Style, @Palette, SYSDATETIME());
+      `);
 
-    ctx.requirements = requirements;
-    ctx.stylePlan = stylePlan;
-    SESS.set(tempId, ctx);
-
-    return res.json({ ok: true, data: { tempId, stylePlan } });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ ok: false, message: "Lỗi generate-style" });
+    res.json({
+      ok: true,
+      message: "Đã lưu thông tin phong cách thành công!",
+    });
+  } catch (err) {
+    console.error("Generate-style error:", err);
+    res.status(500).json({ ok: false, message: err.message });
   }
 });
+
 
 /**
  * 3) Upload ảnh nhà thật → sinh ảnh cuối (mock) & LƯU DB
  * POST /api/generate-final  (multipart: house; fields: tempId)
  */
-router.post("/generate-final", upload.single("house"), async (req, res) => {
-  const trxUserId = 1; // tạm hardcode user 1 cho tuần này (chưa auth)
+router.post("/generate-final", async (req, res) => {
+  //const trxUserId = 1; // tạm thời cố định userId = 1
+  const trxUserId = req.user?.userId || 1;
 
   try {
-    const { tempId } = req.body || {};
-    if (!tempId || !SESS.has(tempId)) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "tempId không hợp lệ" });
-    }
-    if (!req.file)
+    const { tempId } = req.body;
+    const file = req.files?.house;
+    if (!file) {
       return res.status(400).json({ ok: false, message: "Thiếu file house" });
+    }
 
-    const ctx = SESS.get(tempId);
-
-    // 1. Upload ảnh nhà thật
+    // 1️⃣ Upload ảnh nhà thật lên Cloudinary
     const upHouse = await uploadBufferToCloudinary(
-      req.file.buffer,
+      file.data,
       "exterior_ai/houses"
     );
 
-    // 2. Mock “sinh ảnh kết quả”: ở đây demo bằng cách… re-upload 1 thumbnail quick
-    // Thực tế: gọi API AI → nhận buffer/URL → upload Cloudinary → lấy secure_url
-    const outputDescription = `Kết hợp ${ctx.extractedLayout?.styleKeywords?.join(
-      ", "
-    )} với yêu cầu ${ctx.requirements?.join(", ")}`;
-    const outputImageUrl = ctx.sampleImageUrl; // tạm mượn sample làm output để demo
+    // 2️⃣ Sinh “mock output” (ở đây tạm dùng lại ảnh gốc làm output)
+    const outputImageUrl = upHouse.secure_url.replace(
+      "/upload/",
+      "/upload/ai-output/"
+    );
 
-    // 3. Lưu DB vào Generations
+    const outputDescription = "Ảnh kết quả mô phỏng được sinh thành công (mock).";
+
+    // 3️⃣ Lưu vào DB
     const pool = await getPool();
-    const q = `
-  INSERT INTO Generations (UserId, InputDesc, InputImageUrl, OutputImageUrl, Style, Palette, Seed, PromptUsed, CreatedAt)
-  OUTPUT INSERTED.Id AS generationId
-  VALUES (@UserId, @InputDesc, @InputImageUrl, @OutputImageUrl, @Style, @Palette, @Seed, @PromptUsed, SYSDATETIME());
-`;
-    const reqDb = pool.request();
-    reqDb.input("UserId", sql.BigInt, trxUserId);
-    reqDb.input("InputDesc", sql.NVarChar(sql.MAX), outputDescription);
-    reqDb.input("InputImageUrl", sql.NVarChar(500), upHouse.secure_url); // house image
-    reqDb.input("OutputImageUrl", sql.NVarChar(500), outputImageUrl); // mock result
-    reqDb.input(
-      "Style",
-      sql.NVarChar(200),
-      (ctx.stylePlan?.combined || []).join(", ")
-    );
-    reqDb.input("Palette", sql.NVarChar(200), null);
-    reqDb.input("Seed", sql.BigInt, null);
-    reqDb.input(
-      "PromptUsed",
-      sql.NVarChar(sql.MAX),
-      ctx.stylePlan?.promptHint || null
-    );
-    const inserted = await reqDb.query(q);
-    const generationId = inserted.recordset[0].generationId;
+    const result = await pool.request()
+      .input("UserId", sql.BigInt, trxUserId)
+      .input("InputDesc", sql.NVarChar(sql.MAX), outputDescription)
+      .input("InputImageUrl", sql.NVarChar(500), upHouse.secure_url)
+      .input("OutputImageUrl", sql.NVarChar(500), outputImageUrl)
+      .input("Style", sql.NVarChar(200), null)
+      .input("Palette", sql.NVarChar(200), null)
+      .input("Seed", sql.BigInt, null)
+      .input("PromptUsed", sql.NVarChar(sql.MAX), null)
+      .query(`
+        INSERT INTO Generations 
+        (UserId, InputDesc, InputImageUrl, OutputImageUrl, Style, Palette, Seed, PromptUsed, CreatedAt)
+        OUTPUT INSERTED.Id AS generationId
+        VALUES (@UserId, @InputDesc, @InputImageUrl, @OutputImageUrl, @Style, @Palette, @Seed, @PromptUsed, SYSDATETIME());
+      `);
 
-    // 4. Clear session tạm (tuỳ thích)
-    SESS.delete(tempId);
+    const generationId = result.recordset[0].generationId;
 
-    return res.json({
+    res.json({
       ok: true,
       data: {
         generationId,
-        userHouseImageUrl: upHouse.secure_url,
+        inputImageUrl: upHouse.secure_url,
         outputImageUrl,
-        description: outputDescription,
       },
     });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ ok: false, message: "Lỗi generate-final" });
+  } catch (err) {
+    console.error("Generate-final error:", err);
+    res.status(500).json({ ok: false, message: err.message });
   }
 });
+
 
 module.exports = router;

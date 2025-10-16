@@ -12,10 +12,15 @@ const historiesRoutes = require('./routes/histories');
 const respond = require('./middlewares/respond');
 const errorHandler = require('./middlewares/error');
 const activityLogger = require('./middlewares/activityLogger');
+const fileUpload = require('express-fileupload');
+
+const usersRoutes = require("./routes/users");
+const auth = require("./middlewares/auth");
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(fileUpload());
 app.use(morgan(':method :url :status :response-time ms'));
 
 // ✅ Chuẩn hóa phản hồi
@@ -34,5 +39,9 @@ app.use('/api', historiesRoutes);
 // ✅ Bắt lỗi cuối cùng
 app.use(errorHandler);
 app.use(activityLogger);
+
+app.use("/api/users", usersRoutes);
+app.use("/api", auth, wizardRoutes);
+app.use("/api", auth, historiesRoutes);
 
 module.exports = app;
