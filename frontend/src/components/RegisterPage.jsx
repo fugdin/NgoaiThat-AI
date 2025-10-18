@@ -1,19 +1,11 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 function RegisterPage({ onRegister, onSwitchMode }) {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirm: "",
-  });
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
   const [error, setError] = useState("");
 
   const handleChange = (field) => (event) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: event.target.value,
-    }));
+    setForm((prev) => ({ ...prev, [field]: event.target.value }));
     setError("");
   };
 
@@ -27,6 +19,10 @@ function RegisterPage({ onRegister, onSwitchMode }) {
       setError("Mật khẩu xác nhận không khớp.");
       return;
     }
+    if (form.password.length < 6) {
+      setError("Mật khẩu cần tối thiểu 6 ký tự.");
+      return;
+    }
 
     const result = onRegister({
       name: form.name.trim(),
@@ -36,106 +32,83 @@ function RegisterPage({ onRegister, onSwitchMode }) {
 
     if (!result.ok) {
       setError(result.message || "Đăng ký thất bại, vui lòng thử lại.");
-      return;
     }
-
-    onSwitchMode("login", {
-      prefillEmail: result.email,
-      notice: "Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.",
-    });
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-6 py-12 text-slate-100">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-8 shadow-2xl shadow-emerald-500/10 backdrop-blur">
-        <div className="space-y-2 text-center">
-          <p className="text-xs uppercase tracking-[0.5em] text-emerald-400/80">
-            Ngoại thất AI
-          </p>
-          <h1 className="text-2xl font-semibold">Đăng ký tài khoản</h1>
-          <p className="text-sm text-slate-400">
-            Tạo tài khoản designer để lưu trữ và theo dõi các dự án ngoại thất.
+    <div className="wizard-shell" style={{ justifyContent: "center" }}>
+      <div className="wizard-card" style={{ width: "min(460px, 92%)", margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: "24px" }}>
+          <div style={{ fontSize: "44px" }}>🆕</div>
+          <h2 className="wizard-card__title">Tạo tài khoản mới</h2>
+          <p className="wizard-card__subtitle">
+            Đăng ký bằng email công việc để bắt đầu trải nghiệm AI House Designer.
           </p>
         </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-200">
-              Họ tên hiển thị
-            </span>
+        <form style={{ display: "flex", flexDirection: "column", gap: "18px" }} onSubmit={handleSubmit}>
+          <label>
+            <span style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>Họ tên hiển thị</span>
             <input
               type="text"
               required
               value={form.name}
               onChange={handleChange("name")}
-              placeholder="vd: Nguyễn Minh An"
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
+              className="input-text"
+              placeholder="Ví dụ: Nguyễn Minh An"
             />
           </label>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-200">
-              Email công việc
-            </span>
+          <label>
+            <span style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>Email công việc</span>
             <input
               type="email"
               required
               value={form.email}
               onChange={handleChange("email")}
-              placeholder="vd: an.nguyen@ngoai-that.ai"
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
+              className="input-text"
+              placeholder="ví dụ: an.nguyen@ngoai-that.ai"
             />
           </label>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-200">
-              Mật khẩu
-            </span>
+          <label>
+            <span style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>Mật khẩu</span>
             <input
               type="password"
               required
               value={form.password}
               onChange={handleChange("password")}
+              className="input-text"
               placeholder="Tối thiểu 6 ký tự"
-              minLength={6}
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
             />
           </label>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-200">
-              Xác nhận mật khẩu
-            </span>
+          <label>
+            <span style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>Xác nhận mật khẩu</span>
             <input
               type="password"
               required
               value={form.confirm}
               onChange={handleChange("confirm")}
+              className="input-text"
               placeholder="Nhập lại mật khẩu"
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
             />
           </label>
 
-          {error ? (
-            <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
-              {error}
-            </p>
-          ) : null}
+          {error ? <div className="alert error">{error}</div> : null}
 
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400"
-          >
+          <button type="submit" className="btn btn-primary">
             Tạo tài khoản
           </button>
         </form>
 
-        <p className="text-center text-xs text-slate-500">
-          Đã có tài khoản?{" "}
+        <p style={{ textAlign: "center", marginTop: "18px", fontSize: "0.85rem", color: "rgba(226,233,255,0.7)" }}>
+          Đã có tài khoản?
           <button
             type="button"
             onClick={() => onSwitchMode("login")}
-            className="font-semibold text-emerald-300 hover:text-emerald-200"
+            className="btn btn-ghost"
+            style={{ marginLeft: "8px", padding: "6px 14px" }}
           >
             Đăng nhập
           </button>

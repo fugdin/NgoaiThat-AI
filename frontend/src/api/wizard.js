@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+﻿const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export async function uploadSample(file) {
   const form = new FormData();
@@ -19,13 +19,11 @@ export async function generateStyle(tempId, requirementsArray) {
   return res.json();
 }
 
-
 export async function generateFinal(tempId, file, requirementsObj) {
   const form = new FormData();
   form.append("tempId", tempId);
   form.append("house", file);
 
-  // ✅ Nếu backend muốn đọc thêm yêu cầu (tuỳ chọn)
   if (requirementsObj) {
     const requirements = Array.isArray(requirementsObj)
       ? requirementsObj
@@ -41,7 +39,7 @@ export async function generateFinal(tempId, file, requirementsObj) {
   return res.json();
 }
 
-export async function getHistories(userId = 1) {
-  const res = await fetch(`${API_URL}/api/histories?userId=${userId}`);
+export async function getHistories(userId = "") {
+  const res = await fetch(`${API_URL}/api/histories?userId=${encodeURIComponent(userId)}`);
   return res.json();
 }
