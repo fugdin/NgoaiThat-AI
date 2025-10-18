@@ -1,162 +1,137 @@
-import { useRef, useState } from "react";
-import { generateFinal } from "../api/wizard";
+﻿import { useRef } from "react";
+import WizardNavigation from "./WizardNavigation.jsx";
 
-
-function UploadHouseStep({ houseImage, sampleImage, requirements, onHouseSelected, onBack, onNext, tempId }) {
+function UploadHouseStep({
+  houseImage,
+  sampleImage,
+  requirements,
+  onHouseSelected,
+  onBack,
+  onNext,
+  loading = false,
+  apiMessage = "",
+}) {
   const fileInputRef = useRef(null);
-  const [loading, setLoading] = useState(false);
 
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] ?? null;
-    if (file) {
-      onHouseSelected(file);
-    }
+    onHouseSelected(file);
   };
 
-  const handleGenerate = async () => {
-    if (!tempId || !houseImage?.file) {
-      alert("Thiếu dữ liệu ảnh hoặc tempId!");
-      return;
-    }
+  const preventDefaults = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
 
-    setLoading(true);
-    try {
-      const res = await generateFinal(tempId, houseImage.file, requirements);
-      console.log("[GENERATE FINAL]", res);
-
-      if (res.ok) {
-        //alert("Sinh ảnh hoàn thiện thành công!");
-        onNext(); // sang bước kết quả
-      } else {
-        alert("Lỗi khi sinh ảnh hoàn thiện: " + (res.message || "Unknown error"));
-      }
-    } catch (err) {
-      console.error("Generate-final error:", err);
-      alert("Không thể kết nối đến API /generate-final!");
-    } finally {
-      setLoading(false);
-    }
+  const handleDrop = (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0] ?? null;
+    onHouseSelected(file);
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-100">
-          3. Tải ảnh căn nhà hiện trạng
-        </h2>
-        <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-          Đây là bức ảnh sẽ được AI chỉnh sửa dựa trên phong cách bạn chọn. Hãy
-          sử dụng ảnh rõ nét, chụp thẳng mặt tiền và đủ ánh sáng để đạt kết quả
-          tối ưu.
-        </p>
-      </div>
+    <div>
+      <div className="wizard-card__section">
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ fontSize: "44px", letterSpacing: "0.2em", opacity: 0.6 }}>BƯỚC 03</div>
+          <h2 className="wizard-card__title">Tải ảnh căn nhà hiện trạng</h2>
+          <p className="wizard-card__subtitle">
+            Để AI áp dụng phong cách đã chọn, hãy gửi một bức ảnh mặt tiền rõ nét của căn nhà hiện tại.
+          </p>
+        </div>
 
-      <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
-        <div className="space-y-4">
-          <div className="rounded-xl border border-dashed border-slate-500 bg-slate-800/40 p-8 text-center">
-            <p className="text-sm font-medium text-slate-200">
-              Kéo &amp; thả hoặc chọn ảnh từ máy
-            </p>
-            <p className="mt-2 text-xs text-slate-400">
-              Gợi ý: ảnh chụp ban ngày, độ phân giải &ge; 1920px, tránh người hoặc
-              xe che khuất mặt tiền.
-            </p>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400"
+        <div className="info-grid" style={{ gap: "24px" }}>
+          <div>
+            <div
+              className="upload-dropzone"
+              onDragEnter={preventDefaults}
+              onDragOver={preventDefaults}
+              onDrop={handleDrop}
             >
-              Chọn ảnh nhà thô
-            </button>
-            <input
-              ref={fileInputRef}
-              className="hidden"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
-            {houseImage ? (
-              <p className="mt-3 text-xs text-emerald-300">
-                Đã chọn: {houseImage.file?.name ?? "Ảnh nhà hiện trạng"}
-              </p>
+              <div style={{ fontSize: "36px", marginBottom: "12px" }}>🏠</div>
+              <h3>Kéo thả ảnh hiện trạng tại đây</h3>
+              <p>hoặc nhấn để chọn ảnh từ thiết bị</p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ marginTop: "22px" }}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+              >
+                {loading ? "Đang gửi..." : "Chọn ảnh hiện trạng"}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                style={{ display: "none" }}
+              />
+              {houseImage ? (
+                <p style={{ marginTop: "12px", fontSize: "0.85rem", color: "rgba(144,255,195,0.85)" }}>
+                  Ảnh đã chọn: <strong>{houseImage.file?.name ?? houseImage?.name ?? "Ảnh hiện trạng"}</strong>
+                </p>
+              ) : (
+                <p style={{ marginTop: "12px", fontSize: "0.85rem", color: "rgba(226,233,255,0.7)" }}>
+                  Mẹo: Chụp chính diện, đủ sáng, tránh vật cản để có kết quả tốt nhất.
+                </p>
+              )}
+            </div>
+
+            {houseImage?.preview ? (
+              <div className="preview-frame">
+                <div className="preview-image">
+                  <img src={houseImage.preview} alt="Ảnh hiện trạng" />
+                </div>
+              </div>
             ) : null}
           </div>
 
-          {houseImage?.preview ? (
-            <div>
-              <p className="text-sm font-medium text-slate-300 mb-3">
-                Xem trước ảnh nhà
-              </p>
-              <img
-                src={houseImage.preview}
-                alt="Ảnh nhà hiện trạng"
-                className="max-h-80 w-full rounded-lg object-cover shadow-lg"
-              />
-            </div>
-          ) : null}
-        </div>
-
-        <div className="space-y-4 rounded-xl border border-slate-600 bg-slate-800/40 p-6">
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-            Tóm tắt yêu cầu
-          </p>
-          <div className="space-y-3 text-sm text-slate-300">
-            <div>
-              <p className="font-medium text-slate-200">Phong cách mong muốn</p>
-              <p className="text-slate-400">{requirements.style}</p>
-            </div>
-            <div>
-              <p className="font-medium text-slate-200">Bảng màu chính</p>
-              <p className="text-slate-400">
-                {requirements.colorPalette || "Chưa cung cấp"}
-              </p>
-            </div>
-            <div>
-              <p className="font-medium text-slate-200">Điểm nhấn &amp; trang trí</p>
-              <p className="text-slate-400">
-                {requirements.decorItems || "Chưa cung cấp"}
-              </p>
-            </div>
-            <div>
-              <p className="font-medium text-slate-200">Lưu ý cho AI</p>
-              <p className="text-slate-400">
-                {requirements.aiSuggestions || "Không có lưu ý thêm"}
-              </p>
+          <div className="timeline-card">
+            <h4>Tóm tắt yêu cầu</h4>
+            <div className="info-grid" style={{ gridTemplateColumns: "1fr", gap: "12px" }}>
+              <div className="info-card">
+                <strong>Phong cách</strong>
+                <p style={{ marginTop: "6px" }}>{requirements.style}</p>
+              </div>
+              <div className="info-card">
+                <strong>Bảng màu chính</strong>
+                <p style={{ marginTop: "6px" }}>{requirements.colorPalette || "Chưa cung cấp"}</p>
+              </div>
+              <div className="info-card">
+                <strong>Vật liệu & điểm nhấn</strong>
+                <p style={{ marginTop: "6px" }}>{requirements.decorItems || "Chưa cung cấp"}</p>
+              </div>
+              <div className="info-card">
+                <strong>Ghi chú cho AI</strong>
+                <p style={{ marginTop: "6px" }}>{requirements.aiSuggestions || "Không có ghi chú thêm"}</p>
+              </div>
+              {sampleImage?.preview ? (
+                <div className="info-card" style={{ textAlign: "center" }}>
+                  <strong>Ảnh mẫu tham chiếu</strong>
+                  <div className="preview-image" style={{ marginTop: "12px" }}>
+                    <img src={sampleImage.preview} alt="Ảnh mẫu tham chiếu" />
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
-
-          {sampleImage?.preview ? (
-            <div>
-              <p className="text-xs uppercase tracking-wide text-slate-400">
-                Ảnh mẫu tham chiếu
-              </p>
-              <img
-                src={sampleImage.preview}
-                alt="Ảnh mẫu tham chiếu"
-                className="mt-2 max-h-40 w-full rounded-lg object-cover"
-              />
-            </div>
-          ) : null}
         </div>
       </div>
 
-      <div className="flex justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-lg border border-slate-600 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-400 hover:text-emerald-200"
-        >
-          Quay lại
-        </button>
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={!houseImage}
-          className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-        >
-          {loading ? "Đang xử lý..." : "Hoàn tất phân tích"}
-        </button>
-      </div>
+      {apiMessage ? (
+        <div className="alert info" style={{ marginTop: "18px" }}>
+          {apiMessage}
+        </div>
+      ) : null}
+
+      <WizardNavigation
+        onBack={onBack}
+        onNext={onNext}
+        disableNext={!houseImage || loading}
+        nextLabel="Tạo ảnh gợi ý"
+        nextLoading={loading}
+      />
     </div>
   );
 }

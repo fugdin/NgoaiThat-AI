@@ -1,53 +1,20 @@
-import { useRef } from "react";
-import { uploadSample, generateStyle, generateFinal } from "../api/wizard";
+﻿import { useRef } from "react";
+import WizardNavigation from "./WizardNavigation.jsx";
 
-
-
-function UploadSampleStep({ sampleImage, onSampleSelected, onNext }) {
+function UploadSampleStep({
+  sampleImage,
+  onSampleSelected,
+  onNext,
+  disableNext,
+  loading = false,
+  apiMessage = "",
+}) {
   const fileInputRef = useRef(null);
 
-  const handleFileChange = async (event) => {
-    const file = event.target?.files?.[0];
-    if (!file) {
-      console.warn("Không tìm thấy file hợp lệ.");
-      return;
-    }
-
-    // ✅ Kiểm tra kiểu dữ liệu
-    if (!(file instanceof Blob)) {
-      console.error("Giá trị không phải File hoặc Blob:", file);
-      return;
-    }
-
-    let previewUrl = null;
-    try {
-      previewUrl = URL.createObjectURL(file);
-    } catch (err) {
-      console.error("Lỗi tạo preview URL:", err);
-      previewUrl = null;
-    }
-
-    // Tạm thời cập nhật preview để hiển thị ảnh
-    onSampleSelected({ file, preview: previewUrl });
-
-    // ✅ Upload thật lên backend
-    try {
-      const res = await uploadSample(file);
-      console.log("[UPLOAD SAMPLE]", res);
-
-      if (res.ok && res.data?.sampleImageUrl) {
-        onSampleSelected({
-          file,
-          preview: previewUrl,
-          tempId: res.data.tempId,
-          sampleUrl: res.data.sampleImageUrl,
-        });
-      } else {
-        alert("Upload thất bại: " + (res.message || "Unknown error"));
-      }
-    } catch (err) {
-      console.error("UploadSample Error:", err);
-      alert("Không thể upload ảnh mẫu. Vui lòng thử lại!");
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0] ?? null;
+    if (file) {
+      onSampleSelected(file);
     }
   };
 
@@ -55,7 +22,7 @@ function UploadSampleStep({ sampleImage, onSampleSelected, onNext }) {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0] ?? null;
     if (file) {
-      handleFileChange({ target: { files: [file] } });
+      onSampleSelected(file);
     }
   };
 
@@ -64,89 +31,76 @@ function UploadSampleStep({ sampleImage, onSampleSelected, onNext }) {
     event.stopPropagation();
   };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-100">
-          1. Tải ảnh mẫu bạn yêu thích
-        </h2>
-        <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-          Cung cấp một bức ảnh ngoại thất truyền cảm hứng. Ảnh này giúp hệ thống
-          hiểu về phong cách, bảng màu và mức độ chi tiết mà bạn mong muốn.
-        </p>
-      </div>
+  const fileName = sampleImage?.file?.name ?? sampleImage?.name ?? "Chưa chọn";
 
-      <div
-        className="relative rounded-xl border border-dashed border-slate-500 bg-slate-800/40 p-8 transition hover:border-emerald-400 hover:bg-slate-800/70"
-        onDragEnter={preventDefaults}
-        onDragOver={preventDefaults}
-        onDragLeave={preventDefaults}
-        onDrop={handleDrop}
-      >
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex items-center gap-3 text-slate-300">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
-              ↑
-            </span>
-            <div className="text-left">
-              <p className="font-medium text-slate-100">
-                Kéo &amp; thả hoặc chọn ảnh từ máy
-              </p>
-              <p className="text-xs text-slate-400">
-                Định dạng hỗ trợ: JPG, PNG (tối đa 15MB)
-              </p>
-            </div>
-          </div>
+  return (
+    <div>
+      <div className="wizard-card__section">
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ fontSize: "44px", letterSpacing: "0.2em", opacity: 0.6 }}>BƯỚC 01</div>
+          <h2 className="wizard-card__title">Tải ảnh mẫu truyền cảm hứng</h2>
+          <p className="wizard-card__subtitle">
+            Chọn một bức ảnh ngoại thất bạn yêu thích để AI phân tích phong cách, vật liệu và ánh sáng.
+          </p>
+        </div>
+
+        <div
+          className="upload-dropzone"
+          onDragEnter={preventDefaults}
+          onDragOver={preventDefaults}
+          onDragLeave={preventDefaults}
+          onDrop={handleDrop}
+        >
+          <div style={{ fontSize: "38px", marginBottom: "12px" }}>📸</div>
+          <h3>Kéo thả ảnh mẫu vào khung</h3>
+          <p>hoặc nhấn để chọn ảnh từ thiết bị</p>
+          <p style={{ fontSize: "0.82rem", marginTop: "12px" }}>
+            Hỗ trợ JPG, PNG với dung lượng tối đa 15MB
+          </p>
           <button
             type="button"
+            className="btn btn-primary"
+            style={{ marginTop: "22px" }}
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-emerald-950 transition hover:bg-emerald-400"
+            disabled={loading}
           >
-            Chọn ảnh
+            {loading ? "Đang tải..." : "Chọn ảnh mẫu"}
           </button>
           <input
             ref={fileInputRef}
-            className="hidden"
+            className="hidden-input"
             type="file"
             accept="image/*"
             onChange={handleFileChange}
+            style={{ display: "none" }}
           />
           {sampleImage ? (
-            <p className="text-xs text-emerald-300">
-              Đã chọn: {sampleImage.file?.name ?? "Ảnh mẫu"}
+            <p style={{ marginTop: "12px", fontSize: "0.85rem", color: "rgba(144,255,195,0.85)" }}>
+              Ảnh đã chọn: <strong>{fileName}</strong>
             </p>
           ) : (
-            <p className="text-xs text-slate-500">
-              Chúng tôi sẽ phân tích để nhận diện vật liệu, tông màu, ánh sáng và
-              bố cục tổng thể.
+            <p style={{ marginTop: "12px", fontSize: "0.85rem", color: "rgba(226,233,255,0.7)" }}>
+              Mẹo: Ưu tiên ảnh sắc nét, bố cục rõ để AI hiểu phong cách nhanh hơn.
             </p>
           )}
         </div>
+
+        {sampleImage?.preview ? (
+          <div className="preview-frame">
+            <div className="preview-image">
+              <img src={sampleImage.preview} alt="Ảnh mẫu" />
+            </div>
+          </div>
+        ) : null}
+
+        {apiMessage ? (
+          <div className="alert info" style={{ marginTop: "18px" }}>
+            {apiMessage}
+          </div>
+        ) : null}
       </div>
 
-{typeof sampleImage?.preview === "string" && sampleImage.preview.startsWith("blob:") && (
-  <div>
-    <p className="text-sm font-medium text-slate-300 mb-3">Xem trước ảnh mẫu</p>
-    <img
-      src={sampleImage.preview}
-      alt="Ảnh mẫu"
-      className="max-h-80 w-full rounded-lg object-cover shadow-lg"
-    />
-  </div>
-)}
-
-
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!sampleImage}
-          className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-        >
-          Tiếp tục
-        </button>
-      </div>
+      <WizardNavigation onBack={() => {}} disableBack disableNext={disableNext} onNext={onNext} />
     </div>
   );
 }

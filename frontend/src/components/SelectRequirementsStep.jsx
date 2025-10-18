@@ -1,126 +1,106 @@
-import { useState } from "react";
-import { generateStyle } from "../api/wizard";
+﻿import WizardNavigation from "./WizardNavigation.jsx";
 
-function SelectRequirementsStep({ requirements, onChange, onBack, onNext, tempId }) {
-  const [loading, setLoading] = useState(false);
+const STYLE_OPTIONS = [
+  {
+    value: "Hiện đại",
+    description:
+      "Đường nét gọn gàng, nhiều kính, phối màu trung tính nhấn kim loại ánh vàng.",
+    icon: "✨",
+  },
+  {
+    value: "Tân cổ điển",
+    description:
+      "Mặt tiền cân đối, phào chỉ tinh tế, điểm xuyết hoa văn mềm mại sang trọng.",
+    icon: "🏛️",
+  },
+  {
+    value: "Scandinavian",
+    description:
+      "Không gian sáng, gỗ tự nhiên và bảng màu trung tính mang lại sự ấm áp.",
+    icon: "🌲",
+  },
+  {
+    value: "Resort nhiệt đới",
+    description:
+      "Nhiều mảng xanh, chất liệu gần gũi tạo cảm giác nghỉ dưỡng thư thái.",
+    icon: "🌴",
+  },
+  {
+    value: "Sang trọng đẳng cấp",
+    description:
+      "Vật liệu cao cấp, ánh sáng nghệ thuật, tạo dấu ấn khác biệt cho mặt tiền.",
+    icon: "💎",
+  },
+  {
+    value: "Tối giản đương đại",
+    description:
+      "Tối ưu các mảng phẳng, ít chi tiết, nhấn mạnh khối kiến trúc hiện đại.",
+    icon: "🧊",
+  },
+];
 
+function SelectRequirementsStep({
+  requirements,
+  onChange,
+  onBack,
+  onNext,
+  loading = false,
+  stylePlan,
+  apiMessage = "",
+}) {
   const handleFieldChange = (field) => (event) => {
     onChange({ ...requirements, [field]: event.target.value });
   };
 
-  const STYLE_OPTIONS = [
-    {
-      value: "Hiện đại",
-      description:
-        "Đường nét tinh giản, vật liệu kính và kim loại, phối màu trung tính.",
-    },
-    {
-      value: "Tân cổ điển",
-      description:
-        "Nhấn mạnh chi tiết phào chỉ, mái vòm mềm mại, màu sắc thanh lịch.",
-    },
-    {
-      value: "Scandinavian",
-      description:
-        "Tông sáng, gỗ tự nhiên, đề cao ánh sáng và sự tối giản ấm áp.",
-    },
-    {
-      value: "Resort nhiệt đới",
-      description:
-        "Nhiều mảng xanh, vật liệu gần gũi thiên nhiên, nhấn mạnh ban công mở.",
-    },
-  ];
-
-  // ✅ Gọi API khi người dùng nhấn "Tiếp tục"
-  const handleNext = async () => {
-    if (!tempId) {
-      alert("Thiếu tempId — vui lòng tải ảnh mẫu trước!");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const reqArray = Object.values(requirements);
-      const res = await generateStyle(tempId, reqArray);
-
-      console.log("[GENERATE STYLE]", res);
-
-      if (res.ok) {
-        //alert("Đã tạo kế hoạch phong cách thành công!");
-        onNext(); // sang bước upload ảnh nhà
-      } else {
-        alert("Lỗi khi tạo phong cách: " + (res.message || "Unknown error"));
-      }
-    } catch (err) {
-      console.error("Generate-style error:", err);
-      alert("Không thể kết nối đến API /generate-style!");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-100">
-          2. Xác định yêu cầu &amp; gợi ý
-        </h2>
-        <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-          Mô tả sở thích và những điểm bạn muốn thay đổi. Hệ thống sử dụng thông
-          tin này để gợi ý vật liệu, màu sắc và chi tiết phù hợp với ảnh mẫu.
-        </p>
-      </div>
+    <div>
+      <div className="wizard-card__section">
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ fontSize: "42px", letterSpacing: "0.2em", opacity: 0.6 }}>BƯỚC 02</div>
+          <h2 className="wizard-card__title">Chọn yêu cầu thiết kế mong muốn</h2>
+          <p className="wizard-card__subtitle">
+            Hãy đánh dấu phong cách phù hợp và mô tả chi tiết bạn muốn AI ưu tiên khi tạo phương án.
+          </p>
+        </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <label className="flex flex-col gap-2 rounded-lg border border-slate-600 bg-slate-800/40 p-4">
-          <span className="text-sm font-medium text-slate-200">
-            Bảng màu mong muốn
-          </span>
-          <textarea
-            rows={3}
-            value={requirements.colorPalette}
-            onChange={handleFieldChange("colorPalette")}
-            placeholder="Ví dụ: trắng kem làm chủ đạo, điểm nhấn màu gỗ óc chó và hệ thống đèn vàng ấm."
-            className="rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
-          />
-        </label>
-
-        <label className="flex flex-col gap-2 rounded-lg border border-slate-600 bg-slate-800/40 p-4">
-          <span className="text-sm font-medium text-slate-200">
-            Vật liệu &amp; trang trí mong muốn
-          </span>
-          <textarea
-            rows={3}
-            value={requirements.decorItems}
-            onChange={handleFieldChange("decorItems")}
-            placeholder="Ví dụ: thêm lam gỗ, bồn cây treo, đèn tường kiểu tối giản."
-            className="rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
-          />
-        </label>
-      </div>
-
-      <div className="space-y-4">
-        <p className="text-sm font-medium text-slate-200">
-          Chọn phong cách ngoại thất chính
-        </p>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="info-grid">
           {STYLE_OPTIONS.map((option) => {
             const isActive = option.value === requirements.style;
             return (
               <button
                 key={option.value}
                 type="button"
-                onClick={() =>
-                  onChange({ ...requirements, style: option.value })
-                }
-                className={`rounded-xl border p-4 text-left transition ${
-                  isActive
-                    ? "border-emerald-400 bg-emerald-500/10 text-emerald-200 shadow"
-                    : "border-slate-600 bg-slate-800/50 text-slate-300 hover:border-emerald-300/60 hover:bg-slate-800"
-                }`}
+                onClick={() => onChange({ ...requirements, style: option.value })}
+                className={`info-card ${isActive ? "info-card--active" : ""}`.trim()}
+                style={{ textAlign: "left", cursor: "pointer" }}
               >
-                <p className="font-semibold">{option.value}</p>
-                <p className="mt-2 text-xs leading-relaxed text-slate-300/80">
+                <div
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "12px",
+                    display: "grid",
+                    placeItems: "center",
+                    fontWeight: 600,
+                    fontSize: "1.2rem",
+                    background: isActive
+                      ? "linear-gradient(135deg, #ffbd4a, #ff8f1f)"
+                      : "rgba(40, 45, 70, 0.65)",
+                    color: isActive ? "#1a1320" : "#f5f6ff",
+                    marginBottom: "14px",
+                  }}
+                  aria-hidden="true"
+                >
+                  {option.icon}
+                </div>
+                <h3 style={{ margin: 0, color: "rgba(248,250,255,0.95)" }}>{option.value}</h3>
+                <p
+                  style={{
+                    marginTop: "8px",
+                    fontSize: "0.88rem",
+                    color: isActive ? "rgba(255, 249, 237, 0.85)" : "rgba(226, 233, 255, 0.85)",
+                  }}
+                >
                   {option.description}
                 </p>
               </button>
@@ -129,36 +109,69 @@ function SelectRequirementsStep({ requirements, onChange, onBack, onNext, tempId
         </div>
       </div>
 
-      <label className="flex flex-col gap-2 rounded-lg border border-slate-600 bg-slate-800/40 p-4">
-        <span className="text-sm font-medium text-slate-200">
-          Gợi ý thêm cho hệ thống AI
-        </span>
-        <textarea
-          rows={3}
-          value={requirements.aiSuggestions}
-          onChange={handleFieldChange("aiSuggestions")}
-          placeholder="Ví dụ: ưu tiên ban công xanh, tận dụng ánh sáng tự nhiên, giữ độ cao mái như ảnh mẫu."
-          className="rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
-        />
-      </label>
-
-      <div className="flex justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-lg border border-slate-600 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-400 hover:text-emerald-200"
-        >
-          Quay lại
-        </button>
-        <button
-          type="button"
-          onClick={handleNext}
-          disabled={loading}
-          className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:opacity-50"
-        >
-          {loading ? "Đang xử lý..." : "Tiếp tục"}
-        </button>
+      <div className="wizard-card__section">
+        <div className="timeline-card">
+          <h4>Tinh chỉnh yêu cầu chi tiết</h4>
+          <label style={{ display: "block", marginBottom: "18px" }}>
+            <span style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>
+              Bảng màu mong muốn
+            </span>
+            <textarea
+              className="textarea-text"
+              rows={3}
+              value={requirements.colorPalette}
+              onChange={handleFieldChange("colorPalette")}
+              placeholder="Ví dụ: trắng kem chủ đạo, nhấn vàng champagne, ốp gỗ walnut."
+            />
+          </label>
+          <label style={{ display: "block", marginBottom: "18px" }}>
+            <span style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>
+              Vật liệu & trang trí mong muốn
+            </span>
+            <textarea
+              className="textarea-text"
+              rows={3}
+              value={requirements.decorItems}
+              onChange={handleFieldChange("decorItems")}
+              placeholder="Ví dụ: lam gỗ dọc, đèn hắt khe, ban công cây xanh."
+            />
+          </label>
+          <label>
+            <span style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>
+              Ghi chú thêm cho AI
+            </span>
+            <textarea
+              className="textarea-text"
+              rows={3}
+              value={requirements.aiSuggestions}
+              onChange={handleFieldChange("aiSuggestions")}
+              placeholder="Ví dụ: ưu tiên ban công xanh, sử dụng ánh sáng ấm vào buổi tối."
+            />
+          </label>
+        </div>
       </div>
+
+      {stylePlan ? (
+        <div className="wizard-card__section">
+          <div className="timeline-card">
+            <h4>Kế hoạch gợi ý từ AI</h4>
+            <p style={{ lineHeight: 1.7, color: "rgba(226,233,255,0.85)" }}>{stylePlan}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {apiMessage ? (
+        <div className="alert info" style={{ marginTop: "18px" }}>
+          {apiMessage}
+        </div>
+      ) : null}
+
+      <WizardNavigation
+        onBack={onBack}
+        onNext={onNext}
+        disableNext={loading}
+        nextLoading={loading}
+      />
     </div>
   );
 }
