@@ -7,13 +7,122 @@ import ResultStep from "./components/ResultStep.jsx";
 import SelectRequirementsStep from "./components/SelectRequirementsStep.jsx";
 import UploadHouseStep from "./components/UploadHouseStep.jsx";
 import UploadSampleStep from "./components/UploadSampleStep.jsx";
-import { uploadSample, generateStyle, generateFinal, getHistories } from "./api/wizard";
+import ProfilePage from "./components/ProfilePage.jsx";
+import ToastList from "./components/ToastList.jsx";
+import { getHistories } from "./api/wizard";
+import useToasts from "./hooks/useToasts.js";
+import useWizardFlow from "./hooks/useWizardFlow.js";
+import useHistoryManager from "./hooks/useHistoryManager.js";
+
+const iconBaseProps = {
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.6,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  "aria-hidden": "true",
+};
+
+function Icon({ name, size = 18, className }) {
+  const props = { ...iconBaseProps, width: size, height: size, className };
+
+  switch (name) {
+    case "palette":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="8.5" />
+          <circle cx="8.5" cy="10" r="1.3" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="8.5" r="1.3" fill="currentColor" stroke="none" />
+          <circle cx="15.5" cy="10.5" r="1.2" fill="currentColor" stroke="none" />
+          <path d="M12 20c2.5 0 3.5-1.4 3-3.2-.4-1.4.4-2.3 1.6-2.6" />
+        </svg>
+      );
+    case "spark":
+      return (
+        <svg {...props}>
+          <path d="M12 4.5 13.4 9 18 10.6 13.4 12.2 12 16.7 10.6 12.2 6 10.6 10.6 9z" />
+          <path d="M5.5 5 6 7 7.8 7.5 6 8 5.5 9.8 5 8 3.2 7.5 5 7z" />
+          <path d="M17.5 14 18 15.8 19.8 16.3 18 16.8 17.5 18.6 17 16.8 15.2 16.3 17 15.8z" />
+        </svg>
+      );
+    case "camera":
+      return (
+        <svg {...props}>
+          <rect x="4.5" y="7" width="15" height="11" rx="3" />
+          <path d="M9 6.5h6" />
+          <circle cx="12" cy="12.5" r="3.4" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="m8.7 12 2.2 2.2 4.4-4.7" />
+        </svg>
+      );
+    case "compass":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="m9.5 14.5 1.1-3.9 3.9-1.1-1.1 3.9z" />
+        </svg>
+      );
+    case "clock":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 8v4l2.5 2.5" />
+        </svg>
+      );
+    case "user":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="9" r="3.2" />
+          <path d="M6.5 18.5a6 6 0 0 1 11 0" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg {...props}>
+          <path d="M12 4 6 6v5.5c0 3.9 2.5 7.5 6 8.5 3.5-1 6-4.6 6-8.5V6z" />
+          <path d="m9.5 13 1.8 1.8 3.2-3.6" />
+        </svg>
+      );
+    case "home":
+      return (
+        <svg {...props}>
+          <path d="M4.5 10.5 12 5l7.5 5.5" />
+          <path d="M6.5 10v8.5h11V10" />
+          <path d="M10.5 18.5v-3.5h3v3.5" />
+        </svg>
+      );
+    case "logo":
+      return (
+        <svg {...props}>
+          <path d="M4.5 11.5 12 5l7.5 6.5" />
+          <path d="M7 10.5v7.5h10V10.5" />
+          <path d="M9.5 14.5h5" />
+        </svg>
+      );
+    case "logout":
+      return (
+        <svg {...props}>
+          <path d="M9 6v-2.5h8.5v17H9V18" />
+          <path d="M14 12H4.5" />
+          <path d="m7 9-3 3 3 3" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 const steps = [
-  { id: "sample", label: "Ảnh mẫu" },
-  { id: "requirements", label: "Yêu cầu" },
-  { id: "house", label: "Ảnh nhà" },
-  { id: "result", label: "Kết quả" },
+  { id: "sample", label: "Ảnh mẫu", icon: "palette" },
+  { id: "requirements", label: "Yêu cầu", icon: "spark" },
+  { id: "house", label: "Ảnh hiện trạng", icon: "camera" },
+  { id: "result", label: "Kết quả", icon: "check" },
 ];
 
 const DEFAULT_USERS = [
@@ -31,48 +140,22 @@ const DEFAULT_USERS = [
   },
 ];
 
-const createInitialData = () => ({
-  sampleImage: null,
-  requirements: {
-    colorPalette: "",
-    decorItems: "",
-    aiSuggestions: "",
-    style: "Hiện đại",
-  },
-  houseImage: null,
-});
-
-const createHistoryId = () => {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-};
-
-const normalizeHistory = (entries) => {
-  if (!Array.isArray(entries)) return [];
-  return entries.map((entry) => ({
-    ...entry,
-    status: entry.status || "pending",
-  }));
-};
-
-const mergeUsers = (storedUsers) => {
+function mergeUsers(storedUsers) {
   const map = new Map(
-    DEFAULT_USERS.map((user) => [user.email.toLowerCase(), user])
+    DEFAULT_USERS.map((item) => [item.email.toLowerCase(), item])
   );
   if (Array.isArray(storedUsers)) {
-    storedUsers.forEach((user) => {
-      if (user?.email) {
-        map.set(user.email.toLowerCase(), {
-          ...user,
-          email: user.email.toLowerCase(),
+    storedUsers.forEach((candidate) => {
+      if (candidate?.email) {
+        map.set(candidate.email.toLowerCase(), {
+          ...candidate,
+          email: candidate.email.toLowerCase(),
         });
       }
     });
   }
   return Array.from(map.values());
-};
+}
 
 function App() {
   const [users, setUsers] = useState(() => {
@@ -81,12 +164,14 @@ function App() {
       const stored = window.localStorage.getItem("exteriorUsers");
       if (!stored) return DEFAULT_USERS;
       const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return DEFAULT_USERS;
       return mergeUsers(parsed);
     } catch (error) {
       console.warn("Không thể đọc danh sách người dùng từ localStorage:", error);
       return DEFAULT_USERS;
     }
   });
+
   const [user, setUser] = useState(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -99,41 +184,63 @@ function App() {
       return null;
     }
   });
+
   const [authMode, setAuthMode] = useState("login");
   const [authNotice, setAuthNotice] = useState("");
   const [authPrefillEmail, setAuthPrefillEmail] = useState("");
   const [activeView, setActiveView] = useState("wizard");
-  const [stepIndex, setStepIndex] = useState(0);
-  const [wizardData, setWizardData] = useState(createInitialData);
-  const [history, setHistory] = useState(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = window.localStorage.getItem("exteriorHistory");
-      if (!stored) return [];
-      const parsed = JSON.parse(stored);
-      return normalizeHistory(parsed);
-    } catch (error) {
-      console.warn("Không thể đọc lịch sử từ localStorage:", error);
-      return [];
-    }
-  });
+
+  const { toasts, pushToast, dismissToast } = useToasts();
+  const {
+    wizardData,
+    loadingState,
+    apiMessages,
+    stepIndex,
+    currentStepId,
+    progressPercent,
+    disableNextSample,
+    disableNextHouse,
+    goNext,
+    goBack,
+    resetWizard,
+    handleSampleSelected,
+    handleRequirementsChange,
+    handleGenerateStyle,
+    handleHouseSelected,
+    handleGenerateFinal,
+  } = useWizardFlow({ steps, pushToast });
+
+  const {
+    history,
+    visibleHistory,
+    personalHistory,
+    saveHistory,
+    updateHistoryStatus,
+    forceClearHistory,
+  } = useHistoryManager(user);
+
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem("exteriorUsers", JSON.stringify(users));
+    try {
+      window.localStorage.setItem("exteriorUsers", JSON.stringify(users));
+    } catch (error) {
+      console.warn("Không thể lưu người dùng vào localStorage:", error);
+    }
   }, [users]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem("exteriorHistory", JSON.stringify(history));
-  }, [history]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (user) {
-      window.localStorage.setItem("exteriorUser", JSON.stringify(user));
-    } else {
-      window.localStorage.removeItem("exteriorUser");
+    try {
+      if (user) {
+        window.localStorage.setItem("exteriorUser", JSON.stringify(user));
+      } else {
+        window.localStorage.removeItem("exteriorUser");
+      }
+    } catch (error) {
+      console.warn("Không thể lưu người dùng vào localStorage:", error);
     }
   }, [user]);
 
@@ -141,48 +248,80 @@ function App() {
     if (user?.role !== "admin" && activeView === "admin") {
       setActiveView("wizard");
     }
+  }, [activeView, user?.role]);
+
+  useEffect(() => {
+    if (!user || activeView !== "history") return;
+    let cancelled = false;
+    const fetchHistories = async () => {
+      try {
+        const res = await getHistories(user.role === "admin" ? "" : user.email);
+        if (!cancelled && res && res.ok && Array.isArray(res.data?.items)) {
+          console.log("Remote histories preview:", res.data.items.slice(0, 3));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn("Không thể lấy lịch sử từ API:", error);
+        }
+      }
+    };
+    fetchHistories();
+    return () => {
+      cancelled = true;
+    };
   }, [activeView, user]);
 
   useEffect(() => {
-  return () => {
-    setTimeout(() => {
-      if (wizardData.sampleImage?.preview)
-        URL.revokeObjectURL(wizardData.sampleImage.preview);
-      if (wizardData.houseImage?.preview)
-        URL.revokeObjectURL(wizardData.houseImage.preview);
-    }, 500); // ✅ Delay 0.5s để React render xong rồi mới revoke
-  };
-}, [wizardData.sampleImage?.preview, wizardData.houseImage?.preview]);
-
+    if (typeof window === "undefined") return;
+    let rafId = null;
+    const handleScroll = () => {
+      const y = window.scrollY;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        setIsHeaderCollapsed((prev) => {
+          if (!prev && y > 160) return true;
+          if (prev && y < 80) return false;
+          return prev;
+        });
+      });
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   useEffect(() => {
-  const fetchHistories = async () => {
-    try {
-      const res = await getHistories(1);
-      console.log("Histories API:", res);
-    } catch (err) {
-      console.error("Lỗi khi tải lịch sử:", err);
+    if (!isHeaderCollapsed) setIsQuickMenuOpen(false);
+  }, [isHeaderCollapsed]);
+
+  const navigationItems = useMemo(() => {
+    const items = [
+      { id: "wizard", label: "Quy trình", icon: "compass" },
+      { id: "profile", label: "Hồ sơ", icon: "user" },
+    ];
+    if (user?.role === "admin") {
+      items.push({ id: "admin", label: "Quản trị", icon: "shield" });
     }
-  };
+    return items;
+  }, [user?.role]);
 
-  if (activeView === "history") {
-    fetchHistories();
-  }
-}, [activeView]);
+  const roleLabel = user?.role === "admin" ? "Quản trị viên" : "Nhà thiết kế";
+  const displayName = user?.name ?? "Người dùng";
 
-
-  const restartWizard = () => {
-    setWizardData((prev) => {
-      if (prev.sampleImage?.preview) {
-        URL.revokeObjectURL(prev.sampleImage.preview);
-      }
-      if (prev.houseImage?.preview) {
-        URL.revokeObjectURL(prev.houseImage.preview);
-      }
-      return createInitialData();
-    });
-    setStepIndex(0);
-  };
+  const displayInitials = useMemo(() => {
+    const source = displayName.trim();
+    if (!source) return "ND";
+    const parts = source.split(/\s+/);
+    const letters = parts
+      .map((part) => part.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+    return letters || "ND";
+  }, [displayName]);
 
   const handleSwitchAuthMode = (mode, options = {}) => {
     setAuthMode(mode);
@@ -200,7 +339,7 @@ function App() {
     if (!matchedUser) {
       return {
         ok: false,
-        message: "Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.",
+        message: "Email hoặc mật khẩu không đúng. Vui lòng thử lại.",
       };
     }
 
@@ -213,35 +352,34 @@ function App() {
     setAuthMode("login");
     setAuthNotice("");
     setAuthPrefillEmail("");
-    restartWizard();
-
+    resetWizard();
     return { ok: true };
   };
 
   const handleRegister = ({ name, email, password }) => {
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
     const exists = users.some((item) => item.email === normalizedEmail);
     if (exists) {
       return {
         ok: false,
-        message: "Email này đã tồn tại trong hệ thống.",
+        message: "Email đã tồn tại trong hệ thống.",
       };
     }
-
     const newUser = {
       email: normalizedEmail,
       password,
       role: "designer",
       name,
     };
-
     setUsers((prev) => [...prev, newUser]);
-
+    setAuthMode("login");
+    setAuthNotice("Đăng ký thành công. Vui lòng đăng nhập.");
+    setAuthPrefillEmail(normalizedEmail);
     return { ok: true, email: normalizedEmail };
   };
 
   const handleLogout = () => {
-    restartWizard();
+    resetWizard();
     setUser(null);
     setActiveView("wizard");
     setAuthMode("login");
@@ -249,212 +387,52 @@ function App() {
     setAuthPrefillEmail("");
   };
 
-// Trong App.jsx
-const handleSampleSelected = (fileData) => {
-  setWizardData((prev) => {
-    if (prev.sampleImage?.preview) {
-      URL.revokeObjectURL(prev.sampleImage.preview);
-    }
-
-    // ✅ Nếu có tempId, luôn lưu lại vào wizardData
-    if (fileData?.tempId) {
-      return {
-        ...prev,
-        tempId: fileData.tempId,
-        sampleImage: fileData,
-      };
-    }
-
-    // Nếu chỉ là file thô (chưa upload xong)
-    if (fileData?.file) {
-      return {
-        ...prev,
-        sampleImage: fileData,
-      };
-    }
-
-    return prev;
-  });
-};
-
-
-
-  const handleHouseSelected = (file) => {
-    setWizardData((prev) => {
-      if (prev.houseImage?.preview) {
-        URL.revokeObjectURL(prev.houseImage.preview);
-      }
-      if (!file) {
-        return { ...prev, houseImage: null };
-      }
-      return {
-        ...prev,
-        houseImage: {
-          file,
-          preview: URL.createObjectURL(file),
-        },
-      };
-    });
-  };
-
-  const handleRequirementsChange = (nextRequirements) => {
-    setWizardData((prev) => ({
-      ...prev,
-      requirements: nextRequirements,
-    }));
-  };
-
-  const goNext = () => {
-    setStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
-  };
-
-  const goBack = () => {
-    setStepIndex((prev) => Math.max(prev - 1, 0));
-  };
-  
-
-  const handleSaveHistory = async (notes) => {
-  try {
-    const res = await getHistories(1);
-    if (!res.ok) throw new Error(res.message);
-    console.log("Histories:", res.data.items);
-  } catch (err) {
-    console.error("Không thể lấy lịch sử:", err.message);
-  }
-};
-
-  const handleUpdateHistoryStatus = (entryId, status) => {
-    setHistory((prev) =>
-      prev.map((entry) =>
-        entry.id === entryId
-          ? { ...entry, status, updatedAt: new Date().toISOString() }
-          : entry
-      )
-    );
-  };
-
-  const handleForceClearHistory = () => {
-    if (typeof window !== "undefined") {
-      const confirmed = window.confirm(
-        "Xóa toàn bộ lịch sử demo? Thao tác này không thể hoàn tác."
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
-    setHistory([]);
-  };
-
-  const recommendations = useMemo(() => {
-    const items = [];
-    const { requirements, sampleImage, houseImage } = wizardData;
-
-    if (requirements.colorPalette) {
-      items.push(
-        `Giữ bảng màu chủ đạo "${requirements.colorPalette}" và tinh chỉnh độ bão hòa để hài hòa với ánh sáng hiện trạng.`
-      );
-    } else {
-      items.push(
-        "Đề xuất sử dụng tông màu trung tính (trắng kem, ghi nhạt) kết hợp điểm nhấn gỗ để tạo cảm giác ấm áp."
-      );
-    }
-
-    if (requirements.decorItems) {
-      items.push(
-        `Bổ sung các chi tiết trang trí: ${requirements.decorItems}. Ưu tiên bố trí cân đối ở ban công và mặt đứng.`
-      );
-    }
-
-    switch (requirements.style) {
-      case "Hiện đại":
-        items.push(
-          "Tăng mảng kính và lam nhôm ngang để nhấn mạnh đường nét hiện đại, kết hợp ánh sáng âm trần mạnh."
-        );
-        break;
-      case "Tân cổ điển":
-        items.push(
-          "Thêm phào chỉ tinh gọn và hệ cột cân đối, sử dụng đèn tường cổ điển để tạo cảm giác sang trọng."
-        );
-        break;
-      case "Scandinavian":
-        items.push(
-          "Ưu tiên bề mặt gỗ sáng, cửa kính lớn và bồn cây nhỏ để tăng độ thoáng đãng đặc trưng Bắc Âu."
-        );
-        break;
-      case "Resort nhiệt đới":
-        items.push(
-          "Bố trí lam gỗ dọc, mái hiên lớn và mảng xanh rủ nhằm tạo cảm giác nghỉ dưỡng thoáng mát."
-        );
-        break;
-      default:
-        break;
-    }
-
-    if (requirements.aiSuggestions) {
-      items.push(
-        `Lưu ý riêng: ${requirements.aiSuggestions}. Hệ thống sẽ ưu tiên chi tiết này trong giai đoạn render.`
-      );
-    }
-
-    if (sampleImage && houseImage) {
-      items.push(
-        "AI sẽ đồng bộ góc chụp và ánh sáng giữa ảnh mẫu và ảnh hiện trạng để tăng mức độ tương đồng."
-      );
-    }
-
-    items.push(
-      "Khi có kết quả, bạn có thể đề nghị thêm phương án khác (ví dụ: biến thể màu sắc hoặc vật liệu)."
-    );
-
-    return items;
-  }, [wizardData]);
-
-  const currentStep = steps[stepIndex]?.id ?? "sample";
-  const visibleHistory =
-    user?.role === "admin"
-      ? history
-      : history.filter((entry) => entry.createdBy === user?.email);
-
   let stepContent = null;
-  if (currentStep === "sample") {
+  if (currentStepId === "sample") {
     stepContent = (
       <UploadSampleStep
         sampleImage={wizardData.sampleImage}
         onSampleSelected={handleSampleSelected}
         onNext={goNext}
+        disableNext={disableNextSample}
+        loading={loadingState.sample}
+        apiMessage={apiMessages.sample}
       />
     );
-  } else if (currentStep === "requirements") {
+  } else if (currentStepId === "requirements") {
     stepContent = (
       <SelectRequirementsStep
-        tempId={wizardData.tempId} 
         requirements={wizardData.requirements}
         onChange={handleRequirementsChange}
         onBack={goBack}
-        onNext={goNext}
+        onNext={handleGenerateStyle}
+        loading={loadingState.requirements}
+        stylePlan={wizardData.stylePlan}
+        apiMessage={apiMessages.requirements}
       />
     );
-  } else if (currentStep === "house") {
+  } else if (currentStepId === "house") {
     stepContent = (
       <UploadHouseStep
         houseImage={wizardData.houseImage}
         sampleImage={wizardData.sampleImage}
         requirements={wizardData.requirements}
-        tempId={wizardData.tempId}
         onHouseSelected={handleHouseSelected}
         onBack={goBack}
-        onNext={goNext}
+        onNext={handleGenerateFinal}
+        loading={loadingState.house}
+        apiMessage={apiMessages.house}
       />
     );
-  } else if (currentStep === "result") {
+  } else {
     stepContent = (
       <ResultStep
         data={wizardData}
-        recommendations={recommendations}
         history={visibleHistory}
-        onSaveHistory={handleSaveHistory}
+        onSaveHistory={(notes) => saveHistory(wizardData, notes)}
         onBack={goBack}
-        onRestart={restartWizard}
+        onRestart={resetWizard}
+        apiMessage={apiMessages.result}
       />
     );
   }
@@ -468,7 +446,6 @@ const handleSampleSelected = (fileData) => {
         />
       );
     }
-
     return (
       <LoginPage
         onLogin={handleLogin}
@@ -484,143 +461,224 @@ const handleSampleSelected = (fileData) => {
       ? "Bảng điều khiển quản trị"
       : "Trợ lý thiết kế ngoại thất thông minh";
 
-  const headerSubtitle =
-    activeView === "admin"
-      ? "Theo dõi và quản lý các yêu cầu thiết kế mà đội ngũ đã khởi tạo."
-      : "Hoàn thiện mặt tiền theo phong cách bạn mong muốn trong bốn bước rõ ràng.";
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-        <div className="mx-auto flex flex-col gap-4 px-6 py-6 lg:max-w-5xl lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-emerald-400/80">
-              Ngoại thất AI
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-50">
-              {headerTitle}
-            </h1>
-            <p className="mt-1 text-sm text-slate-400">{headerSubtitle}</p>
-          </div>
-          <div className="flex flex-col items-stretch gap-3 text-sm text-slate-300 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-3 rounded-full border border-slate-700 bg-slate-900/60 px-4 py-2">
-              <div>
-                <p className="font-semibold text-slate-100">{user.name}</p>
-                <p className="text-xs uppercase tracking-wide text-emerald-300/80">
-                  {user.role === "admin" ? "Quản trị viên" : "Nhà thiết kế"}
-                </p>
+    <div className="app-shell">
+      <ToastList toasts={toasts} onDismiss={dismissToast} />
+      <header className={`app-header ${isHeaderCollapsed ? "app-header--hidden" : ""}`}>
+        <div className="app-header__inner">
+          <div className={`app-header__row${isHeaderCollapsed ? " app-header__row--hidden" : ""}`}>
+            <div className="app-header__brand">
+              <span className="app-logo-chip">
+                <Icon name="logo" size={26} />
+              </span>
+              <div className="app-header__brand-text">
+                <p className="app-header__title">AI House Designer</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveView("wizard")}
-                className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-                  activeView === "wizard"
-                    ? "bg-emerald-500 text-emerald-950"
-                    : "border border-slate-700 text-slate-300 hover:border-emerald-400/60 hover:text-emerald-200"
-                }`}
-              >
-                Wizard
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveView("history")}
-                className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-                  activeView === "history"
-                    ? "bg-emerald-500 text-emerald-950"
-                    : "border border-slate-700 text-slate-300 hover:border-emerald-400/60 hover:text-emerald-200"
-                }`}
-              >
-                Lịch sử
-              </button>
-              {user.role === "admin" ? (
-                <button
-                  type="button"
-                  onClick={() => setActiveView("admin")}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-                    activeView === "admin"
-                      ? "bg-emerald-500 text-emerald-950"
-                      : "border border-slate-700 text-slate-300 hover:border-emerald-400/60 hover:text-emerald-200"
-                  }`}
-                >
-                  Admin
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-full border border-rose-500/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-rose-200 transition hover:bg-rose-500/10"
-              >
+          </div>
+
+          <div className="app-header__meta">
+            <h1 className="app-header__headline">{headerTitle}</h1>
+          </div>
+
+          <div className="app-header__nav">
+            <div className="app-header__nav-actions">
+              <div className="header-avatar">
+                <div className="header-avatar__circle">
+                  <span>{displayInitials}</span>
+                  <span className="header-avatar__badge">
+                    <Icon name="home" size={15} />
+                  </span>
+                </div>
+                <div className="header-avatar__info">
+                  <p className="header-avatar__name">{displayName}</p>
+                  <p className="header-avatar__role">{roleLabel}</p>
+                </div>
+              </div>
+
+              <button type="button" onClick={handleLogout} className="nav-chip nav-chip--ghost">
+                <Icon name="logout" size={15} className="nav-chip__icon" />
                 Đăng xuất
               </button>
             </div>
+
+            <nav className="app-nav" aria-label="Điều hướng">
+              {navigationItems.map(({ id, label, icon }) => {
+                const isActive = activeView === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setActiveView(id)}
+                    className={`nav-chip${isActive ? " nav-chip--active" : ""}`}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <Icon name={icon} size={16} className="nav-chip__icon" />
+                    {label}
+                  </button>
+                );
+              })}
+            </nav>
           </div>
         </div>
-        {activeView === "wizard" ? (
-          <div className="border-t border-slate-900/60">
-            <div className="mx-auto flex items-center gap-4 px-6 py-4 lg:max-w-5xl">
+      </header>
+
+      {isHeaderCollapsed ? (
+        <>
+          <button
+            type="button"
+            className={`quick-menu-toggle${isQuickMenuOpen ? " is-open" : ""}`}
+            onClick={() => setIsQuickMenuOpen((prev) => !prev)}
+            aria-label="Mở menu nhanh"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="4" y="7" width="16" height="2" rx="1" />
+              <rect x="4" y="11" width="16" height="2" rx="1" />
+              <rect x="4" y="15" width="16" height="2" rx="1" />
+            </svg>
+          </button>
+          <div
+            className={`quick-menu${isQuickMenuOpen ? " quick-menu--open" : ""}`}
+            onClick={() => setIsQuickMenuOpen(false)}
+          >
+            <div
+              className="quick-menu__panel"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="quick-menu__header">
+                <div className="header-avatar">
+                  <div className="header-avatar__circle">
+                    <span>{displayInitials}</span>
+                    <span className="header-avatar__badge">
+                      <Icon name="home" size={15} />
+                    </span>
+                  </div>
+                  <div className="header-avatar__info">
+                    <p className="header-avatar__name">{displayName}</p>
+                    <p className="header-avatar__role">{roleLabel}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsQuickMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="nav-chip nav-chip--ghost quick-menu__logout"
+                >
+                  <Icon name="logout" size={15} className="nav-chip__icon" />
+                  Đăng xuất
+                </button>
+              </div>
+
+              <nav className="quick-menu__nav" aria-label="Menu điều hướng">
+                {navigationItems.map(({ id, label, icon }) => {
+                  const isActive = activeView === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setActiveView(id);
+                        setIsQuickMenuOpen(false);
+                      }}
+                      className={`quick-menu__item${isActive ? " is-active" : ""}`}
+                    >
+                      <Icon name={icon} size={16} />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      <main className="app-main wizard-main">
+        {activeView === "wizard" && (
+          <div className="step-progress" role="list" aria-label="Tiến trình thiết kế">
+            <div className="step-progress__items">
               {steps.map((step, index) => {
                 const isActive = index === stepIndex;
-                const isCompleted = index < stepIndex;
+                const isComplete = index < stepIndex;
                 return (
-                  <div key={step.id} className="flex items-center gap-2">
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${
-                        isCompleted
-                          ? "border-emerald-400 bg-emerald-500/20 text-emerald-200"
-                          : isActive
-                          ? "border-emerald-400 text-emerald-200"
-                          : "border-slate-700 text-slate-500"
-                      }`}
-                    >
-                      {index + 1}
+                  <div
+                    key={step.id}
+                    className={`step-progress__item${isActive ? " is-active" : ""}${
+                      isComplete ? " is-complete" : ""
+                    }`}
+                    role="listitem"
+                  >
+                    <div className="step-progress__status">
+                      <Icon name={step.icon} size={18} className="step-progress__icon" />
                     </div>
-                    <p
-                      className={`text-xs font-medium uppercase tracking-wide ${
-                        isActive
-                          ? "text-emerald-200"
-                          : isCompleted
-                          ? "text-slate-300"
-                          : "text-slate-600"
-                      }`}
-                    >
-                      {step.label}
-                    </p>
-                    {index < steps.length - 1 ? (
-                      <span className="h-px w-10 bg-slate-800" />
-                    ) : null}
+                    <div className="step-progress__text">
+                      <span className="step-progress__label">{step.label}</span>
+                      <span className="step-progress__caption">Bước {index + 1}</span>
+                    </div>
                   </div>
                 );
               })}
             </div>
+            <div className="step-progress__bar" aria-hidden="true">
+              <div className="step-progress__bar-fill" style={{ width: `${progressPercent}%` }} />
+            </div>
           </div>
-        ) : null}
-      </header>
-
-      <main className="mx-auto w-full max-w-5xl px-6 py-10">
-        {activeView === "wizard" ? (
-          stepContent
-        ) : activeView === "history" ? (
-          <HistoryViewer
-            entries={visibleHistory}
-            title={
-              user.role === "admin" ? "Lịch sử dự án" : "Lịch sử dự án của tôi"
-            }
-            emptyMessage={
-              user.role === "admin"
-                ? "Chưa có dự án nào được lưu."
-                : "Bạn chưa lưu dự án nào. Hãy tạo đề xuất trong Wizard để bắt đầu."
-            }
-          />
-        ) : (
-          <AdminDashboard
-            history={history}
-            onUpdateStatus={handleUpdateHistoryStatus}
-            onForceClear={handleForceClearHistory}
-          />
         )}
+
+        <div className="app-stage">
+          {activeView === "wizard" ? (
+            stepContent
+          ) : activeView === "history" ? (
+            <HistoryViewer
+              entries={visibleHistory}
+              title={
+                user.role === "admin"
+                  ? "Lịch sử dự án"
+                  : "Lịch sử dự án của tôi"
+              }
+              emptyMessage={
+                user.role === "admin"
+                  ? "Chưa có dự án nào được lưu."
+                  : "Bạn chưa lưu dự án nào. Hãy tạo đề xuất trong wizard để bắt đầu."
+              }
+            />
+          ) : activeView === "profile" ? (
+            <ProfilePage
+              user={user}
+              historyEntries={personalHistory}
+              draft={wizardData}
+            />
+          ) : (
+            <AdminDashboard
+              history={history}
+              onUpdateStatus={updateHistoryStatus}
+              onForceClear={forceClearHistory}
+            />
+          )}
+        </div>
       </main>
+
+      <footer className="app-footer">
+        <div className="app-footer__inner">
+          <div>
+            <p className="app-footer__brand">AI House Designer</p>
+            <p className="app-footer__tagline">Trợ lý thiết kế ngoại thất thông minh</p>
+          </div>
+          <div className="app-footer__links">
+            <span className="app-footer__copyright">
+              © {new Date().getFullYear()} Ngoại Thất AI
+            </span>
+            <a href="#" className="app-footer__link">
+              Điều khoản
+            </a>
+            <a href="#" className="app-footer__link">
+              Liên hệ
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

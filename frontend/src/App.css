@@ -1,42 +1,153 @@
+:root {
+  color: #f8fafc;
+  background-color: #050816;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, #1f2a46 0%, transparent 40%),
+    radial-gradient(circle at top right, #1a1f33 0%, transparent 45%),
+    linear-gradient(180deg, #050816 0%, #070c1a 50%, #0c1628 100%);
+}
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+.wizard-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: rgba(226, 233, 255, 0.9);
+  margin-bottom: 20px;
+  box-shadow: 0 12px 28px rgba(5, 8, 22, 0.35);
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.wizard-progress__spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid rgba(148, 163, 184, 0.45);
+  border-top-color: #ffd56f;
+  animation: btn-spinner 0.9s linear infinite;
+  margin-top: 2px;
 }
 
-@keyframes logo-spin {
+.wizard-progress__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.wizard-progress__text strong {
+  display: block;
+  font-size: 0.95rem;
+  color: #f8fafc;
+}
+
+.wizard-progress__text span {
+  display: block;
+  font-size: 0.85rem;
+  color: rgba(226, 233, 255, 0.75);
+  margin-top: 2px;
+}
+
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 2000;
+  width: min(320px, calc(100vw - 32px));
+}
+
+@media (max-width: 640px) {
+  .toast-container {
+    left: 16px;
+    right: 16px;
+  }
+}
+
+.toast {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(10, 14, 34, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.45);
+  color: rgba(234, 240, 255, 0.92);
+  animation: toast-entry 0.25s ease-out;
+}
+
+.toast--error {
+  border-color: rgba(248, 113, 113, 0.55);
+}
+
+.toast--success {
+  border-color: rgba(134, 239, 172, 0.55);
+}
+
+.toast--info {
+  border-color: rgba(147, 197, 253, 0.55);
+}
+
+.toast__icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.toast__content {
+  min-width: 0;
+}
+
+.toast__title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #f8fafc;
+}
+
+.toast__message {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(226, 233, 255, 0.82);
+}
+
+.toast__close {
+  border: none;
+  background: transparent;
+  color: rgba(226, 233, 255, 0.7);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0;
+  margin: 0;
+}
+
+.toast__close:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+@keyframes toast-entry {
   from {
-    transform: rotate(0deg);
+    transform: translateY(-8px);
+    opacity: 0;
   }
   to {
-    transform: rotate(360deg);
+    transform: translateY(0);
+    opacity: 1;
   }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }
