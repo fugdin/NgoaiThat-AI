@@ -9,20 +9,13 @@
   secondaryRight = null,
   primaryRight = null,
 }) {
-  const renderNextLabel = () => {
-    if (nextLoading) {
-      return "Đang xử lý...";
-    }
-    return nextLabel;
-  };
-
   return (
     <div className="button-group">
       <button
         type="button"
         onClick={onBack}
-        disabled={disableBack}
-        className="btn btn-secondary"
+        disabled={disableBack || nextLoading}
+        className={`btn btn-secondary${nextLoading ? " btn--disabled" : ""}`}
       >
         ← {backLabel}
       </button>
@@ -33,9 +26,18 @@
             type="button"
             onClick={onNext}
             disabled={disableNext || nextLoading}
-            className="btn btn-primary"
+            className={`btn btn-primary${nextLoading ? " btn--loading" : ""}`}
+            aria-busy={nextLoading}
+            aria-live="polite"
           >
-            {renderNextLabel()}
+            {nextLoading ? (
+              <>
+                <span className="btn__spinner" aria-hidden="true" />
+                <span>Đang xử lý...</span>
+              </>
+            ) : (
+              nextLabel
+            )}
           </button>
         )}
       </div>

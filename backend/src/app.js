@@ -18,6 +18,10 @@ const usersRoutes = require("./routes/users");
 const auth = require("./middlewares/auth");
 
 const app = express();
+
+// Routes chính
+app.use('/api', wizardRoutes);
+app.use('/api', historiesRoutes); 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(fileUpload());
@@ -32,9 +36,7 @@ app.get('/health', async (_req, res) => {
   res.ok({ time: new Date().toISOString() });
 });
 
-// Routes chính
-app.use('/api', wizardRoutes);
-app.use('/api', historiesRoutes);
+
 
 // ✅ Bắt lỗi cuối cùng
 app.use(errorHandler);

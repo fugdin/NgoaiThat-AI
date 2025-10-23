@@ -31,6 +31,16 @@ function UploadHouseStep({
 
   return (
     <div>
+      {loading ? (
+        <div className="wizard-progress" role="status" aria-live="assertive">
+          <span className="wizard-progress__spinner" aria-hidden="true" />
+          <div className="wizard-progress__text">
+            <strong>Đang gửi ảnh hiện trạng và tạo gợi ý...</strong>
+            <span>Bước 3/4 – Việc này có thể mất khoảng 30-45 giây.</span>
+          </div>
+        </div>
+      ) : null}
+
       <div className="wizard-card__section">
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
           <div style={{ fontSize: "44px", letterSpacing: "0.2em", opacity: 0.6 }}>BƯỚC 03</div>
@@ -53,12 +63,19 @@ function UploadHouseStep({
               <p>hoặc nhấn để chọn ảnh từ thiết bị</p>
               <button
                 type="button"
-                className="btn btn-primary"
+                className={`btn btn-primary${loading ? " btn--loading" : ""}`}
                 style={{ marginTop: "22px" }}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading}
               >
-                {loading ? "Đang gửi..." : "Chọn ảnh hiện trạng"}
+                {loading ? (
+                  <>
+                    <span className="btn__spinner" aria-hidden="true" />
+                    <span>Đang gửi...</span>
+                  </>
+                ) : (
+                  "Chọn ảnh hiện trạng"
+                )}
               </button>
               <input
                 ref={fileInputRef}
@@ -119,11 +136,10 @@ function UploadHouseStep({
         </div>
       </div>
 
-      {apiMessage ? (
-        <div className="alert info" style={{ marginTop: "18px" }}>
-          {apiMessage}
-        </div>
-      ) : null}
+      <div className="alert info" style={{ marginTop: "18px" }} role="status" aria-live="polite">
+        {apiMessage ||
+          "Sau khi xử lý xong, ảnh kết quả sẽ hiển thị ở bước tiếp theo để bạn xem và lưu lại."}
+      </div>
 
       <WizardNavigation
         onBack={onBack}

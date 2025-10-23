@@ -54,6 +54,16 @@ function SelectRequirementsStep({
 
   return (
     <div>
+      {loading ? (
+        <div className="wizard-progress" role="status" aria-live="assertive">
+          <span className="wizard-progress__spinner" aria-hidden="true" />
+          <div className="wizard-progress__text">
+            <strong>AI đang phân tích yêu cầu của bạn...</strong>
+            <span>Bước 2/4 – Thông tin chi tiết giúp gợi ý chính xác hơn.</span>
+          </div>
+        </div>
+      ) : null}
+
       <div className="wizard-card__section">
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
           <div style={{ fontSize: "42px", letterSpacing: "0.2em", opacity: 0.6 }}>BƯỚC 02</div>
@@ -160,11 +170,10 @@ function SelectRequirementsStep({
         </div>
       ) : null}
 
-      {apiMessage ? (
-        <div className="alert info" style={{ marginTop: "18px" }}>
-          {apiMessage}
-        </div>
-      ) : null}
+      <div className="alert info" style={{ marginTop: "18px" }} role="status" aria-live="polite">
+        {apiMessage ||
+          "Chọn phong cách và mô tả càng kỹ càng giúp AI hiểu rõ hơn về mong muốn của bạn."}
+      </div>
 
       <WizardNavigation
         onBack={onBack}

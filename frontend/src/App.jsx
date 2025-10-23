@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminDashboard from "./components/AdminDashboard.jsx";
 import HistoryViewer from "./components/HistoryViewer.jsx";
 import LoginPage from "./components/LoginPage.jsx";
@@ -8,12 +8,11 @@ import SelectRequirementsStep from "./components/SelectRequirementsStep.jsx";
 import UploadHouseStep from "./components/UploadHouseStep.jsx";
 import UploadSampleStep from "./components/UploadSampleStep.jsx";
 import ProfilePage from "./components/ProfilePage.jsx";
-import {
-  uploadSample,
-  generateStyle,
-  generateFinal,
-  getHistories,
-} from "./api/wizard";
+import ToastList from "./components/ToastList.jsx";
+import { getHistories } from "./api/wizard";
+import useToasts from "./hooks/useToasts.js";
+import useWizardFlow from "./hooks/useWizardFlow.js";
+import useHistoryManager from "./hooks/useHistoryManager.js";
 
 const iconBaseProps = {
   viewBox: "0 0 24 24",
@@ -141,63 +140,16 @@ const DEFAULT_USERS = [
   },
 ];
 
-const createInitialData = () => ({
-  sampleImage: null,
-  houseImage: null,
-  requirements: {
-    style: "Hiện đại",
-    colorPalette: "",
-    decorItems: "",
-    aiSuggestions: "",
-  },
-  stylePlan: "",
-  result: null,
-  tempId: "",
-});
-
-const createHistoryId = () => {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-};
-
-const readFileAsDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    if (!(file instanceof Blob)) {
-      resolve("");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result || "");
-    reader.onerror = () =>
-      reject(new Error("Không thể đọc tệp hình ảnh từ thiết bị."));
-    reader.readAsDataURL(file);
-  });
-
-const initialMessages = {
-  sample: "",
-  requirements: "",
-  house: "",
-  result: "",
-};
-
-const initialLoading = {
-  sample: false,
-  requirements: false,
-  house: false,
-};
-
 function mergeUsers(storedUsers) {
   const map = new Map(
     DEFAULT_USERS.map((item) => [item.email.toLowerCase(), item])
   );
   if (Array.isArray(storedUsers)) {
-    storedUsers.forEach((user) => {
-      if (user?.email) {
-        map.set(user.email.toLowerCase(), {
-          ...user,
-          email: user.email.toLowerCase(),
+    storedUsers.forEach((candidate) => {
+      if (candidate?.email) {
+        map.set(candidate.email.toLowerCase(), {
+          ...candidate,
+          email: candidate.email.toLowerCase(),
         });
       }
     });
@@ -237,22 +189,36 @@ function App() {
   const [authNotice, setAuthNotice] = useState("");
   const [authPrefillEmail, setAuthPrefillEmail] = useState("");
   const [activeView, setActiveView] = useState("wizard");
-  const [stepIndex, setStepIndex] = useState(0);
-  const [wizardData, setWizardData] = useState(createInitialData);
-  const [loadingState, setLoadingState] = useState(initialLoading);
-  const [apiMessages, setApiMessages] = useState(initialMessages);
-  const [history, setHistory] = useState(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = window.localStorage.getItem("exteriorHistory");
-      if (!stored) return [];
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      console.warn("Không thể đọc lịch sử từ localStorage:", error);
-      return [];
-    }
-  });
+
+  const { toasts, pushToast, dismissToast } = useToasts();
+  const {
+    wizardData,
+    loadingState,
+    apiMessages,
+    stepIndex,
+    currentStepId,
+    progressPercent,
+    disableNextSample,
+    disableNextHouse,
+    goNext,
+    goBack,
+    resetWizard,
+    handleSampleSelected,
+    handleRequirementsChange,
+    handleGenerateStyle,
+    handleHouseSelected,
+    handleGenerateFinal,
+  } = useWizardFlow({ steps, pushToast });
+
+  const {
+    history,
+    visibleHistory,
+    personalHistory,
+    saveHistory,
+    updateHistoryStatus,
+    forceClearHistory,
+  } = useHistoryManager(user);
+
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
 
@@ -264,15 +230,6 @@ function App() {
       console.warn("Không thể lưu người dùng vào localStorage:", error);
     }
   }, [users]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem("exteriorHistory", JSON.stringify(history));
-    } catch (error) {
-      console.warn("Không thể lưu lịch sử vào localStorage:", error);
-    }
-  }, [history]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -292,17 +249,6 @@ function App() {
       setActiveView("wizard");
     }
   }, [activeView, user?.role]);
-
-  useEffect(() => {
-    return () => {
-      if (wizardData.sampleImage?.preview) {
-        URL.revokeObjectURL(wizardData.sampleImage.preview);
-      }
-      if (wizardData.houseImage?.preview) {
-        URL.revokeObjectURL(wizardData.houseImage.preview);
-      }
-    };
-  }, [wizardData.sampleImage?.preview, wizardData.houseImage?.preview]);
 
   useEffect(() => {
     if (!user || activeView !== "history") return;
@@ -351,21 +297,6 @@ function App() {
     if (!isHeaderCollapsed) setIsQuickMenuOpen(false);
   }, [isHeaderCollapsed]);
 
-  const currentStep = steps[stepIndex]?.id ?? "sample";
-
-  const visibleHistory = useMemo(() => {
-    if (!user) return [];
-    return user.role === "admin"
-      ? history
-      : history.filter((entry) => entry.createdBy === user.email);
-  }, [history, user]);
-
-  const personalHistory = useMemo(() => {
-    if (!user) return [];
-    if (user.role === "admin") return history;
-    return history.filter((entry) => entry.createdBy === user.email);
-  }, [history, user]);
-
   const navigationItems = useMemo(() => {
     const items = [
       { id: "wizard", label: "Quy trình", icon: "compass" },
@@ -377,8 +308,7 @@ function App() {
     return items;
   }, [user?.role]);
 
-  const roleLabel =
-    user?.role === "admin" ? "Quản trị viên" : "Nhà thiết kế";
+  const roleLabel = user?.role === "admin" ? "Quản trị viên" : "Nhà thiết kế";
   const displayName = user?.name ?? "Người dùng";
 
   const displayInitials = useMemo(() => {
@@ -392,310 +322,6 @@ function App() {
       .toUpperCase();
     return letters || "ND";
   }, [displayName]);
-
-  const progressPercent = useMemo(() => {
-    if (steps.length <= 1) return 0;
-    return (stepIndex / (steps.length - 1)) * 100;
-  }, [stepIndex]);
-
-  const goNext = () => setStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
-  const goBack = () => setStepIndex((prev) => Math.max(prev - 1, 0));
-
-  const resetWizard = () => {
-    setWizardData((prev) => {
-      if (prev.sampleImage?.preview) {
-        URL.revokeObjectURL(prev.sampleImage.preview);
-      }
-      if (prev.houseImage?.preview) {
-        URL.revokeObjectURL(prev.houseImage.preview);
-      }
-      return createInitialData();
-    });
-    setApiMessages({ ...initialMessages });
-    setLoadingState({ ...initialLoading });
-    setStepIndex(0);
-  };
-
-  const handleSampleSelected = async (input) => {
-    setApiMessages((prev) => ({ ...prev, sample: "", house: "" }));
-
-    setWizardData((prev) => {
-      if (prev.sampleImage?.preview) {
-        URL.revokeObjectURL(prev.sampleImage.preview);
-      }
-      const nextTemp = prev.tempId || createHistoryId();
-      if (!input) {
-        return {
-          ...createInitialData(),
-          tempId: nextTemp,
-          requirements: prev.requirements,
-        };
-      }
-
-      if (typeof File !== "undefined" && input instanceof File) {
-        const preview = URL.createObjectURL(input);
-        return {
-          ...prev,
-          sampleImage: { file: input, preview, name: input.name },
-          tempId: nextTemp,
-          houseImage: null,
-          stylePlan: "",
-          result: null,
-        };
-      }
-
-      return {
-        ...prev,
-        sampleImage: input,
-        tempId: input.tempId || prev.tempId || nextTemp,
-        houseImage: null,
-        stylePlan: "",
-        result: null,
-      };
-    });
-
-    if (!(typeof File !== "undefined" && input instanceof File)) {
-      return;
-    }
-
-    try {
-      const sampleDataUrl = await readFileAsDataUrl(input);
-      if (sampleDataUrl) {
-        setWizardData((prev) => ({
-          ...prev,
-          sampleImage: prev.sampleImage
-            ? {
-                ...prev.sampleImage,
-                dataUrl: sampleDataUrl,
-                name: input.name,
-              }
-            : prev.sampleImage,
-        }));
-      }
-    } catch (error) {
-      console.warn("Không thể mã hóa ảnh mẫu thành data URL:", error);
-    }
-
-    setLoadingState((prev) => ({ ...prev, sample: true }));
-    try {
-      const response = await uploadSample(input);
-      const tempId = response?.tempId || createHistoryId();
-      const message =
-        response?.message ||
-        "Tải ảnh mẫu thành công. Chọn Tiếp tục để sang bước kế tiếp.";
-
-      setWizardData((prev) => ({
-        ...prev,
-        tempId,
-        sampleImage: prev.sampleImage
-          ? { ...prev.sampleImage, tempId }
-          : prev.sampleImage,
-      }));
-
-      setApiMessages((prev) => ({ ...prev, sample: message }));
-    } catch (error) {
-      console.error("uploadSample failed:", error);
-      setApiMessages((prev) => ({
-        ...prev,
-        sample: "Không thể tải ảnh mẫu. Vui lòng thử lại.",
-      }));
-    } finally {
-      setLoadingState((prev) => ({ ...prev, sample: false }));
-    }
-  };
-
-  const handleRequirementsChange = (requirements) => {
-    setWizardData((prev) => ({
-      ...prev,
-      requirements,
-    }));
-  };
-
-  const handleGenerateStyle = async () => {
-    setApiMessages((prev) => ({ ...prev, requirements: "" }));
-
-    const nextTempId = wizardData.tempId || createHistoryId();
-    if (!wizardData.tempId) {
-      setWizardData((prev) => ({ ...prev, tempId: nextTempId }));
-    }
-
-    const requirementsArray = [
-      wizardData.requirements.style,
-      wizardData.requirements.colorPalette,
-      wizardData.requirements.decorItems,
-      wizardData.requirements.aiSuggestions,
-    ].filter(Boolean);
-
-    if (requirementsArray.length === 0) {
-      setApiMessages((prev) => ({
-        ...prev,
-        requirements: "Hãy nhập ít nhất một trường trước khi tiếp tục.",
-      }));
-      return;
-    }
-
-    setLoadingState((prev) => ({ ...prev, requirements: true }));
-    try {
-      const response = await generateStyle(nextTempId, requirementsArray);
-      const stylePlan =
-        response?.plan ||
-        (Array.isArray(response?.combined)
-          ? response.combined.join("\n")
-          : response?.promptHint || "");
-
-      setWizardData((prev) => ({
-        ...prev,
-        stylePlan,
-      }));
-
-      setApiMessages((prev) => ({
-        ...prev,
-        requirements:
-          response?.message || "Đã tạo gợi ý từ AI. Chọn Tiếp tục để sang bước kế tiếp.",
-      }));
-
-      goNext();
-    } catch (error) {
-      console.error("generateStyle failed:", error);
-      setApiMessages((prev) => ({
-        ...prev,
-        requirements: "Không thể tạo gợi ý từ AI. Vui lòng thử lại.",
-      }));
-    } finally {
-      setLoadingState((prev) => ({ ...prev, requirements: false }));
-    }
-  };
-
-  const handleHouseSelected = async (file) => {
-    setWizardData((prev) => {
-      if (prev.houseImage?.preview) {
-        URL.revokeObjectURL(prev.houseImage.preview);
-      }
-      if (!file) {
-        return { ...prev, houseImage: null };
-      }
-      if (typeof File !== "undefined" && file instanceof File) {
-        return {
-          ...prev,
-          houseImage: {
-            file,
-            preview: URL.createObjectURL(file),
-            name: file.name,
-          },
-          result: null,
-        };
-      }
-      return { ...prev, houseImage: file };
-    });
-
-    if (typeof File !== "undefined" && file instanceof File) {
-      try {
-        const dataUrl = await readFileAsDataUrl(file);
-        if (dataUrl) {
-          setWizardData((prev) => ({
-            ...prev,
-            houseImage: prev.houseImage
-              ? { ...prev.houseImage, dataUrl, name: file.name }
-              : prev.houseImage,
-          }));
-        }
-      } catch (error) {
-        console.warn("Không thể mã hóa ảnh hiện trạng thành data URL:", error);
-      }
-    }
-  };
-
-  const handleGenerateFinal = async () => {
-    if (!wizardData.houseImage?.file) {
-      setApiMessages((prev) => ({
-        ...prev,
-        house: "Hãy tải ảnh hiện trạng trước khi tiếp tục.",
-      }));
-      return;
-    }
-
-    const tempId = wizardData.tempId || createHistoryId();
-    setWizardData((prev) => ({ ...prev, tempId }));
-
-    setLoadingState((prev) => ({ ...prev, house: true }));
-    setApiMessages((prev) => ({ ...prev, house: "" }));
-
-    try {
-      const response = await generateFinal(
-        tempId,
-        wizardData.houseImage.file,
-        wizardData.requirements
-      );
-
-      const resultPayload = response?.result || response;
-
-      setWizardData((prev) => ({
-        ...prev,
-        result: resultPayload,
-      }));
-
-      setApiMessages((prev) => ({
-        ...prev,
-        house:
-          response?.message ||
-          "Đã gửi ảnh hiện trạng. Kết quả sẽ hiển thị ở bước tiếp theo.",
-      }));
-
-      goNext();
-    } catch (error) {
-      console.error("generateFinal failed:", error);
-      setApiMessages((prev) => ({
-        ...prev,
-        house: "Không thể tạo phương án. Vui lòng thử lại.",
-      }));
-    } finally {
-      setLoadingState((prev) => ({ ...prev, house: false }));
-    }
-  };
-
-  const handleSaveHistory = (notes) => {
-    const entry = {
-      id: createHistoryId(),
-      createdAt: new Date().toISOString(),
-      createdBy: user?.email ?? "unknown",
-      createdByName: user?.name ?? "Người dùng",
-      style: wizardData.requirements.style,
-      colorPalette: wizardData.requirements.colorPalette,
-      decorItems: wizardData.requirements.decorItems,
-      aiSuggestions: wizardData.requirements.aiSuggestions,
-      notes,
-      status: "pending",
-      outputImageUrl: wizardData.result?.outputImageUrl ?? "",
-      sampleImageDataUrl: wizardData.sampleImage?.dataUrl || "",
-      sampleImageName:
-        wizardData.sampleImage?.name || wizardData.sampleImage?.file?.name || "",
-      houseImageDataUrl: wizardData.houseImage?.dataUrl || "",
-      houseImageName:
-        wizardData.houseImage?.name || wizardData.houseImage?.file?.name || "",
-    };
-
-    setHistory((prev) => [...prev, entry]);
-  };
-
-  const handleUpdateHistoryStatus = (entryId, status) => {
-    setHistory((prev) =>
-      prev.map((entry) =>
-        entry.id === entryId
-          ? { ...entry, status, updatedAt: new Date().toISOString() }
-          : entry
-      )
-    );
-  };
-
-  const handleForceClearHistory = () => {
-    if (typeof window !== "undefined") {
-      const confirmed = window.confirm(
-        "Xóa toàn bộ lịch sử demo? Hành động này không thể hoàn tác."
-      );
-      if (!confirmed) return;
-    }
-    setHistory([]);
-  };
 
   const handleSwitchAuthMode = (mode, options = {}) => {
     setAuthMode(mode);
@@ -761,11 +387,8 @@ function App() {
     setAuthPrefillEmail("");
   };
 
-  const disableNextSample = !wizardData.sampleImage || loadingState.sample;
-  const disableNextHouse = !wizardData.houseImage || loadingState.house;
-
   let stepContent = null;
-  if (currentStep === "sample") {
+  if (currentStepId === "sample") {
     stepContent = (
       <UploadSampleStep
         sampleImage={wizardData.sampleImage}
@@ -776,7 +399,7 @@ function App() {
         apiMessage={apiMessages.sample}
       />
     );
-  } else if (currentStep === "requirements") {
+  } else if (currentStepId === "requirements") {
     stepContent = (
       <SelectRequirementsStep
         requirements={wizardData.requirements}
@@ -788,7 +411,7 @@ function App() {
         apiMessage={apiMessages.requirements}
       />
     );
-  } else if (currentStep === "house") {
+  } else if (currentStepId === "house") {
     stepContent = (
       <UploadHouseStep
         houseImage={wizardData.houseImage}
@@ -801,12 +424,12 @@ function App() {
         apiMessage={apiMessages.house}
       />
     );
-  } else if (currentStep === "result") {
+  } else {
     stepContent = (
       <ResultStep
         data={wizardData}
         history={visibleHistory}
-        onSaveHistory={handleSaveHistory}
+        onSaveHistory={(notes) => saveHistory(wizardData, notes)}
         onBack={goBack}
         onRestart={resetWizard}
         apiMessage={apiMessages.result}
@@ -840,6 +463,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      <ToastList toasts={toasts} onDismiss={dismissToast} />
       <header className={`app-header ${isHeaderCollapsed ? "app-header--hidden" : ""}`}>
         <div className="app-header__inner">
           <div className={`app-header__row${isHeaderCollapsed ? " app-header__row--hidden" : ""}`}>
@@ -1029,8 +653,8 @@ function App() {
           ) : (
             <AdminDashboard
               history={history}
-              onUpdateStatus={handleUpdateHistoryStatus}
-              onForceClear={handleForceClearHistory}
+              onUpdateStatus={updateHistoryStatus}
+              onForceClear={forceClearHistory}
             />
           )}
         </div>

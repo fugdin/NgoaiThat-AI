@@ -1197,3 +1197,29 @@ button {
 .quick-menu-toggle.is-open svg rect:nth-child(3) {
   transform: translateY(-6px) rotate(-45deg);
 }
+.btn--disabled {
+  pointer-events: none;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn--loading {
+  pointer-events: none;
+  cursor: wait;
+}
+
+.btn__spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: btn-spinner 0.8s linear infinite;
+}
+
+@keyframes btn-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}

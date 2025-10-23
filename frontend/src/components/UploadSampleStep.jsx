@@ -35,6 +35,16 @@ function UploadSampleStep({
 
   return (
     <div>
+      {loading ? (
+        <div className="wizard-progress" role="status" aria-live="assertive">
+          <span className="wizard-progress__spinner" aria-hidden="true" />
+          <div className="wizard-progress__text">
+            <strong>Đang tải ảnh mẫu lên máy chủ...</strong>
+            <span>Bước 1/4 – Vui lòng giữ trình duyệt mở trong khi xử lý.</span>
+          </div>
+        </div>
+      ) : null}
+
       <div className="wizard-card__section">
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
           <div style={{ fontSize: "44px", letterSpacing: "0.2em", opacity: 0.6 }}>BƯỚC 01</div>
@@ -59,12 +69,19 @@ function UploadSampleStep({
           </p>
           <button
             type="button"
-            className="btn btn-primary"
+            className={`btn btn-primary${loading ? " btn--loading" : ""}`}
             style={{ marginTop: "22px" }}
             onClick={() => fileInputRef.current?.click()}
             disabled={loading}
           >
-            {loading ? "Đang tải..." : "Chọn ảnh mẫu"}
+            {loading ? (
+              <>
+                <span className="btn__spinner" aria-hidden="true" />
+                <span>Đang tải...</span>
+              </>
+            ) : (
+              "Chọn ảnh mẫu"
+            )}
           </button>
           <input
             ref={fileInputRef}
@@ -93,14 +110,18 @@ function UploadSampleStep({
           </div>
         ) : null}
 
-        {apiMessage ? (
-          <div className="alert info" style={{ marginTop: "18px" }}>
-            {apiMessage}
-          </div>
-        ) : null}
+        <div className="alert info" style={{ marginTop: "18px" }} role="status" aria-live="polite">
+          {apiMessage || "Sau khi tải ảnh thành công, hệ thống sẽ gợi ý phong cách phù hợp."}
+        </div>
       </div>
 
-      <WizardNavigation onBack={() => {}} disableBack disableNext={disableNext} onNext={onNext} />
+      <WizardNavigation
+        onBack={() => {}}
+        disableBack
+        disableNext={disableNext}
+        onNext={onNext}
+        nextLoading={loading}
+      />
     </div>
   );
 }
