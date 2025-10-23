@@ -79,7 +79,6 @@ router.post("/generate-style", async (req, res) => {
   }
 });
 
-
 /**
  * 3) Upload ảnh nhà thật → sinh ảnh cuối (mock) & LƯU DB
  * POST /api/generate-final  (multipart: house; fields: tempId)
@@ -143,6 +142,5 @@ router.post("/generate-final", upload.single("house"), async (req, res) => {
     res.status(500).json({ ok: false, message: err.message });
   }
 });
-
 
 module.exports = router;
