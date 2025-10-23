@@ -50,6 +50,7 @@ router.post("/upload-sample", upload.single("sample"), async (req, res) => {
  * POST /api/generate-style { tempId, requirements: [] }
  */
 router.post("/generate-style", async (req, res) => {
+  debugger;
   try {
     const { tempId, requirements } = req.body;
 
@@ -58,12 +59,12 @@ router.post("/generate-style", async (req, res) => {
     }
 
     const pool = await getPool();
-    await pool.request()
+    await pool
+      .request()
       .input("UserId", 1)
       .input("InputDesc", requirements.aiSuggestions || "")
       .input("Style", requirements.style || "")
-      .input("Palette", requirements.colorPalette || "")
-      .query(`
+      .input("Palette", requirements.colorPalette || "").query(`
         INSERT INTO Generations (UserId, InputDesc, Style, Palette, CreatedAt)
         VALUES (@UserId, @InputDesc, @Style, @Palette, SYSDATETIME());
       `);
@@ -83,20 +84,20 @@ router.post("/generate-style", async (req, res) => {
  * 3) Upload ảnh nhà thật → sinh ảnh cuối (mock) & LƯU DB
  * POST /api/generate-final  (multipart: house; fields: tempId)
  */
-router.post("/generate-final", async (req, res) => {
+router.post("/generate-final", upload.single("house"), async (req, res) => {
   //const trxUserId = 1; // tạm thời cố định userId = 1
   const trxUserId = req.user?.userId || 1;
 
   try {
     const { tempId } = req.body;
-    const file = req.files?.house;
+    const file = req.file;
     if (!file) {
       return res.status(400).json({ ok: false, message: "Thiếu file house" });
     }
 
     // 1️⃣ Upload ảnh nhà thật lên Cloudinary
     const upHouse = await uploadBufferToCloudinary(
-      file.data,
+      file.buffer,
       "exterior_ai/houses"
     );
 
@@ -106,11 +107,13 @@ router.post("/generate-final", async (req, res) => {
       "/upload/ai-output/"
     );
 
-    const outputDescription = "Ảnh kết quả mô phỏng được sinh thành công (mock).";
+    const outputDescription =
+      "Ảnh kết quả mô phỏng được sinh thành công (mock).";
 
     // 3️⃣ Lưu vào DB
     const pool = await getPool();
-    const result = await pool.request()
+    const result = await pool
+      .request()
       .input("UserId", sql.BigInt, trxUserId)
       .input("InputDesc", sql.NVarChar(sql.MAX), outputDescription)
       .input("InputImageUrl", sql.NVarChar(500), upHouse.secure_url)
@@ -118,8 +121,7 @@ router.post("/generate-final", async (req, res) => {
       .input("Style", sql.NVarChar(200), null)
       .input("Palette", sql.NVarChar(200), null)
       .input("Seed", sql.BigInt, null)
-      .input("PromptUsed", sql.NVarChar(sql.MAX), null)
-      .query(`
+      .input("PromptUsed", sql.NVarChar(sql.MAX), null).query(`
         INSERT INTO Generations 
         (UserId, InputDesc, InputImageUrl, OutputImageUrl, Style, Palette, Seed, PromptUsed, CreatedAt)
         OUTPUT INSERTED.Id AS generationId

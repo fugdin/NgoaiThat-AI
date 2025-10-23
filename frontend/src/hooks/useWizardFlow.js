@@ -13,7 +13,7 @@ const cloneInitialLoading = () => createInitialLoading();
 const cloneInitialMessages = () => createInitialMessages();
 
 function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
-  const stepsCount = Array.isArray(steps) ? steps.length : 0;
+  const totalSteps = Array.isArray(steps) ? steps.length : 0;
   const [stepIndex, setStepIndex] = useState(0);
   const [wizardData, setWizardData] = useState(cloneInitialData);
   const [loadingState, setLoadingState] = useState(cloneInitialLoading);
@@ -32,10 +32,10 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
 
   const goNext = useCallback(() => {
     setStepIndex((prev) => {
-      if (stepsCount <= 0) return 0;
-      return Math.min(prev + 1, stepsCount - 1);
+      if (totalSteps <= 0) return 0;
+      return Math.min(prev + 1, totalSteps - 1);
     });
-  }, [stepsCount]);
+  }, [totalSteps]);
 
   const goBack = useCallback(() => {
     setStepIndex((prev) => Math.max(prev - 1, 0));
@@ -218,10 +218,9 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
 
       const stylePlan =
         response?.plan ||
-          (Array.isArray(response?.combined)
-            ? response.combined.join("
-")
-            : response?.promptHint || "");
+        (Array.isArray(response?.combined)
+          ? response.combined.join("\n")
+          : response?.promptHint || "");
 
       setWizardData((prev) => ({
         ...prev,
@@ -231,7 +230,8 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
       setApiMessages((prev) => ({
         ...prev,
         requirements:
-          response?.message || "Đã tạo gợi ý từ AI. Chọn Tiếp tục để sang bước kế tiếp.",
+          response?.message ||
+          "Đã tạo gợi ý từ AI. Chọn Tiếp tục để sang bước kế tiếp.",
       }));
 
       goNext();
@@ -368,14 +368,14 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
   const disableNextHouse = !wizardData.houseImage || loadingState.house;
 
   const currentStepId = useMemo(() => {
-    if (!stepsCount) return "sample";
+    if (!totalSteps) return "sample";
     return steps[stepIndex]?.id ?? steps[0]?.id ?? "sample";
-  }, [stepIndex, steps, stepsCount]);
+  }, [stepIndex, steps, totalSteps]);
 
   const progressPercent = useMemo(() => {
-    if (stepsCount <= 1) return 0;
-    return (stepIndex / (stepsCount - 1)) * 100;
-  }, [stepIndex, stepsCount]);
+    if (totalSteps <= 1) return 0;
+    return (stepIndex / (totalSteps - 1)) * 100;
+  }, [stepIndex, totalSteps]);
 
   return {
     wizardData,

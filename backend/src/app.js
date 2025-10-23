@@ -1,49 +1,63 @@
 // 📁 src/app.js
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
+const morgan = require("morgan");
+require("dotenv").config();
 
-const { testDb } = require('./db');
-const wizardRoutes = require('./routes/wizard');
-const historiesRoutes = require('./routes/histories');
-
-// 🧩 middleware mới
-const respond = require('./middlewares/respond');
-const errorHandler = require('./middlewares/error');
-const activityLogger = require('./middlewares/activityLogger');
-const fileUpload = require('express-fileupload');
-
+const { testDb } = require("./db");
+const wizardRoutes = require("./routes/wizard");
+const historiesRoutes = require("./routes/histories");
 const usersRoutes = require("./routes/users");
+
+// 🧩 middlewares
+const respond = require("./middlewares/respond");
+const errorHandler = require("./middlewares/error");
+const activityLogger = require("./middlewares/activityLogger");
+const fileUpload = require("express-fileupload");
 const auth = require("./middlewares/auth");
+const multer = require("multer");
 
 const app = express();
 
-// Routes chính
-app.use('/api', wizardRoutes);
-app.use('/api', historiesRoutes); 
+// ✅ Cấu hình cơ bản
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(fileUpload());
-app.use(morgan(':method :url :status :response-time ms'));
+app.use(morgan(":method :url :status :response-time ms"));
+// ✅ Parser JSON cho các route API thông thường
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+app.use("/api", wizardRoutes);
+
+// ✅ Route upload riêng có middleware fileUpload
+app.use(
+  "/api/upload-sample",
+  fileUpload({
+    useTempFiles: true,
+    tempFileDir: "/tmp/",
+  }),
+  wizardRoutes
+);
+
+// ✅ Route khác (generate-style, generate-final, histories, users)
+
+app.use("/api/histories", historiesRoutes);
+app.use("/api/users", usersRoutes);
+
+// ✅ Route yêu cầu đăng nhập (JWT)
+app.use("/api/secure", auth, wizardRoutes);
+app.use("/api/secure", auth, historiesRoutes);
 
 // ✅ Chuẩn hóa phản hồi
 app.use(respond);
 
-// Health check
-app.get('/health', async (_req, res) => {
+// ✅ Health check
+app.get("/health", async (_req, res) => {
   const ok = await testDb();
-  res.ok({ time: new Date().toISOString() });
+  res.ok({ time: new Date().toISOString(), ok });
 });
 
-
-
-// ✅ Bắt lỗi cuối cùng
-app.use(errorHandler);
+// ✅ Logging + Bắt lỗi
 app.use(activityLogger);
-
-app.use("/api/users", usersRoutes);
-app.use("/api", auth, wizardRoutes);
-app.use("/api", auth, historiesRoutes);
+app.use(errorHandler);
 
 module.exports = app;
