@@ -10,6 +10,7 @@ import UploadSampleStep from "./components/UploadSampleStep.jsx";
 import ProfilePage from "./components/ProfilePage.jsx";
 import ToastList from "./components/ToastList.jsx";
 import { getHistories } from "./api/wizard";
+import { loginUser, registerUser } from "./api/auth";
 import useToasts from "./hooks/useToasts.js";
 import useWizardFlow from "./hooks/useWizardFlow.js";
 import useHistoryManager from "./hooks/useHistoryManager.js";
@@ -125,60 +126,32 @@ const steps = [
   { id: "result", label: "Kết quả", icon: "check" },
 ];
 
-const DEFAULT_USERS = [
-  {
-    email: "admin@ngoai-that.ai",
-    password: "admin123",
-    role: "admin",
-    name: "Quản trị viên",
-  },
-  {
-    email: "designer@ngoai-that.ai",
-    password: "design123",
-    role: "designer",
-    name: "Nhà thiết kế",
-  },
-];
+function normaliseEmail(value = "") {
+  return value.trim().toLowerCase();
+}
 
-function mergeUsers(storedUsers) {
-  const map = new Map(
-    DEFAULT_USERS.map((item) => [item.email.toLowerCase(), item])
-  );
-  if (Array.isArray(storedUsers)) {
-    storedUsers.forEach((candidate) => {
-      if (candidate?.email) {
-        map.set(candidate.email.toLowerCase(), {
-          ...candidate,
-          email: candidate.email.toLowerCase(),
-        });
-      }
-    });
-  }
-  return Array.from(map.values());
+function deriveNameFromEmail(email = "") {
+  if (!email) return "Nguoi dung";
+  const localPart = email.includes("@") ? email.split("@")[0] : email;
+  const cleaned = localPart
+    .replace(/[_-]+/g, " ")
+    .replace(/\.+/g, " ")
+    .trim();
+  if (!cleaned) return "Nguoi dung";
+  return cleaned
+    .split(/\s+/)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
 }
 
 function App() {
-  const [users, setUsers] = useState(() => {
-    if (typeof window === "undefined") return DEFAULT_USERS;
-    try {
-      const stored = window.localStorage.getItem("exteriorUsers");
-      if (!stored) return DEFAULT_USERS;
-      const parsed = JSON.parse(stored);
-      if (!Array.isArray(parsed)) return DEFAULT_USERS;
-      return mergeUsers(parsed);
-    } catch (error) {
-      console.warn("Không thể đọc danh sách người dùng từ localStorage:", error);
-      return DEFAULT_USERS;
-    }
-  });
-
   const [user, setUser] = useState(() => {
     if (typeof window === "undefined") return null;
     try {
       const stored = window.localStorage.getItem("exteriorUser");
       if (!stored) return null;
       const parsed = JSON.parse(stored);
-      return parsed && typeof parsed === "object" ? parsed : null;
+      return parsed && typeof parsed === "object" && parsed.token ? parsed : null;
     } catch (error) {
       console.warn("Không thể đọc người dùng từ localStorage:", error);
       return null;
@@ -222,16 +195,7 @@ function App() {
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem("exteriorUsers", JSON.stringify(users));
-    } catch (error) {
-      console.warn("Không thể lưu người dùng vào localStorage:", error);
-    }
-  }, [users]);
-
-  useEffect(() => {
+useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       if (user) {
@@ -255,7 +219,8 @@ function App() {
     let cancelled = false;
     const fetchHistories = async () => {
       try {
-        const res = await getHistories(user.role === "admin" ? "" : user.email);
+        const targetId = user.role === "admin" ? "" : String(user.id ?? "");
+        const res = await getHistories(targetId);
         if (!cancelled && res && res.ok && Array.isArray(res.data?.items)) {
           console.log("Remote histories preview:", res.data.items.slice(0, 3));
         }
@@ -308,8 +273,11 @@ function App() {
     return items;
   }, [user?.role]);
 
-  const roleLabel = user?.role === "admin" ? "Quản trị viên" : "Nhà thiết kế";
-  const displayName = user?.name ?? "Người dùng";
+  const roleLabel =
+    user?.role === "admin" ? "Quan tri vien" : "Nguoi dung";
+  const displayName =
+    (user?.name && user.name.trim()) ||
+    (user?.email ? deriveNameFromEmail(user.email) : "Nguoi dung");
 
   const displayInitials = useMemo(() => {
     const source = displayName.trim();
@@ -329,53 +297,67 @@ function App() {
     setAuthPrefillEmail(options.prefillEmail ?? "");
   };
 
-  const handleLogin = ({ email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const matchedUser = users.find(
-      (candidate) =>
-        candidate.email === normalizedEmail && candidate.password === password
-    );
-
-    if (!matchedUser) {
-      return {
-        ok: false,
-        message: "Email hoặc mật khẩu không đúng. Vui lòng thử lại.",
+  const handleLogin = async ({ email, password }) => {
+    const normalizedEmail = normaliseEmail(email);
+    try {
+      const response = await loginUser({ email: normalizedEmail, password });
+      const backendUser =
+        response && typeof response === "object" && response.user ? response.user : {};
+      const resolvedEmail = backendUser.email || normalizedEmail;
+      const signedInUser = {
+        id: backendUser.id ?? null,
+        email: resolvedEmail,
+        role: backendUser.role || "user",
+        name:
+          (backendUser.name && backendUser.name.trim()) ||
+          deriveNameFromEmail(resolvedEmail),
+        token: (response && response.token) || "",
       };
+      setUser(signedInUser);
+      setActiveView("wizard");
+      setAuthMode("login");
+      setAuthNotice("");
+      setAuthPrefillEmail("");
+      resetWizard();
+      pushToast({
+        variant: "success",
+        title: "Dang nhap thanh cong",
+        message: "Chao mung ban tro lai.",
+      });
+      return { ok: true };
+    } catch (error) {
+      const message =
+        (error && error.message) || "Dang nhap that bai. Vui long thu lai.";
+      return { ok: false, message };
     }
-
-    setUser({
-      email: matchedUser.email,
-      role: matchedUser.role,
-      name: matchedUser.name,
-    });
-    setActiveView("wizard");
-    setAuthMode("login");
-    setAuthNotice("");
-    setAuthPrefillEmail("");
-    resetWizard();
-    return { ok: true };
   };
 
-  const handleRegister = ({ name, email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const exists = users.some((item) => item.email === normalizedEmail);
-    if (exists) {
-      return {
-        ok: false,
-        message: "Email đã tồn tại trong hệ thống.",
-      };
+  const handleRegister = async ({ name, email, password }) => {
+    const normalizedEmail = normaliseEmail(email);
+    try {
+      const response = await registerUser({
+        name: name.trim(),
+        email: normalizedEmail,
+        password,
+      });
+      setAuthMode("login");
+      setAuthNotice(
+        (response && response.message) ||
+          "Dang ky thanh cong. Vui long dang nhap."
+      );
+      setAuthPrefillEmail(normalizedEmail);
+      pushToast({
+        variant: "success",
+        title: "Dang ky thanh cong",
+        message: "Ban co the dang nhap bang email vua dang ky.",
+      });
+      return { ok: true };
+    } catch (error) {
+      const message =
+        (error && error.message) ||
+        "Dang ky that bai, vui long thu lai.";
+      return { ok: false, message };
     }
-    const newUser = {
-      email: normalizedEmail,
-      password,
-      role: "designer",
-      name,
-    };
-    setUsers((prev) => [...prev, newUser]);
-    setAuthMode("login");
-    setAuthNotice("Đăng ký thành công. Vui lòng đăng nhập.");
-    setAuthPrefillEmail(normalizedEmail);
-    return { ok: true, email: normalizedEmail };
   };
 
   const handleLogout = () => {
