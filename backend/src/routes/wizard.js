@@ -142,32 +142,53 @@ router.post("/generate-final", upload.single("house"), async (req, res) => {
     // Upload ảnh nhà thật lên Cloudinary
     const upHouse = await uploadBufferToCloudinary(file.buffer, "exterior_ai/houses");
 
-    // Prompt tổng hợp
-    const prompt = `
-You are an AI architectural visualization designer.
+    const sampleAnalysis = ctx.aiSummary
+      ? ctx.aiSummary
+      : 'Không có bản phân tích chi tiết cho ảnh mẫu; hãy chỉ dựa trên ảnh nhà thô và yêu cầu phong cách.';
 
-Using the provided images (one raw construction house and one style reference),
-generate a realistic exterior render of the *same building* with the following conditions:
+    const finalInstructions = `
+SYSTEM INSTRUCTIONS
 
-1. Keep the **original structure, shape, proportions, and camera angle** exactly as in the raw house image.
-   - Do not change the layout, height, number of floors, or window positions.
-   - Use the scaffold photo as the fixed architectural base.
+You are an AI architecture and exterior design analyst, image restorer, and aesthetic finisher.
 
-2. Apply the **style, materials, and atmosphere** inspired by the reference image:
+Reference analysis from the sample image (nếu có): 
+${sampleAnalysis}
+
+1. Analyze the provided images (raw construction house + sample style image if available) and extract every architectural component with location, material, and style details:
+   - Walls, columns, roof, windows, doors, balconies, decorative elements, foundation/bậc tam cấp, unique materials.
+   - Always mention where each element sits in the frame (trái/phải/chính giữa, tầng 1/tầng 2, phía trên/dưới).
+   - Tag any scaffolding, công nhân, vật liệu tạm thời; treat them as temporary construction elements, not final architecture.
+
+2. Reconstruct the building to a fully finished state while preserving the original geometry, proportions, and camera angle:
+   - If some elements are missing or unfinished, infer the logical continuation (ví dụ: cột đối xứng, lan can kéo dài).
+   - Remove all temporary construction items (scaffolding, thang, bao xi măng…) and restore the surfaces bị che khuất.
+
+3. Create a segmentation mindset before recoloring:
+   - mentally assign mask IDs for walls, columns, roof, windows, doors, balconies, decorative trims, foundation, cảnh quan.
+   - Keep edges sharp, không để màu lem giữa các vùng.
+
+4. Apply materials, màu sắc, và trang trí theo phong cách người dùng yêu cầu:
    - Style: ${ctx.requirements?.style || "Modern"}
    - Color palette: ${ctx.requirements?.colorPalette || "cream white with wooden accents"}
-   - Materials & decorations: ${ctx.requirements?.decorItems || "wooden slats, wall lamps"}
-   - Additional suggestions: ${ctx.requirements?.aiSuggestions || "prioritize natural lighting, elegant bright tones"}
+   - Materials & decorations cần nhấn mạnh: ${ctx.requirements?.decorItems || "wooden slats, wall lamps"}
+   - Gợi ý bổ sung: ${ctx.requirements?.aiSuggestions || "prioritize natural lighting, elegant bright tones"}
+   - Giữ nguyên chất liệu gốc nếu nhìn thấy rõ; nếu chưa rõ, ghi “chưa xác định” và hoàn thiện bằng vật liệu cùng loại.
 
-3. Improve realism by adding:
-   - Clean finished walls and textures (no raw bricks)
-   - Correct lighting and shadows
-   - Subtle environment (sky, greenery, ground) similar to the reference
+5. Aesthetic refinement:
+   - Bổ sung các chi tiết trang trí nhẹ (đèn tường, phào, lam gỗ, lan can, rèm cửa) phù hợp phong cách đã chọn.
+   - Duy trì ánh sáng tự nhiên, tạo chiều sâu bằng bóng đổ thực tế, thêm bầu trời và cây xanh nhẹ nhàng nếu cần.
 
-⚠️ Important:
-Do not modify the structure or viewing angle of the house.
-Focus only on finishing materials, color, and environment.
-Render a professional, high-quality exterior visualization that matches the real scaffold.
+6. Output requirements:
+   - Trả về một ảnh ngoại thất đã hoàn thiện, sạch sẽ, không còn vật thể thi công.
+   - Mặt tiền phải thể hiện rõ các hạng mục đã mô tả, màu sắc chuẩn xác, vật liệu trung thực.
+   - Chỉ điều chỉnh hoàn thiện bề mặt; tuyệt đối KHÔNG thay đổi hình khối, vị trí cửa sổ, số tầng hay tỷ lệ kiến trúc của ảnh nhà thô.
+   - Đồng thời tường thuật (nội bộ) các bước phân tích, segmentation, phục dựng, tô màu, và trang trí để đảm bảo model hiểu ngữ cảnh.
+`;
+
+    const prompt = `
+${finalInstructions}
+
+Hãy sử dụng ảnh nhà thô làm nền bắt buộc, bám sát cấu trúc thật, chỉ thay đổi vật liệu/màu sắc/hoàn thiện theo phong cách trên. Nếu có ảnh mẫu, dùng phân tích ở trên để suy ra chất liệu và bố cục trang trí tương ứng nhưng tuyệt đối không thay đổi kiến trúc gốc của nhà thật.
 `;
 
 

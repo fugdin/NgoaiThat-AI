@@ -41,16 +41,25 @@ function AdminDashboard({ history, onUpdateStatus, onForceClear }) {
         <p className="wizard-card__subtitle">
           Theo dõi các đề xuất do đội ngũ thiết kế tạo ra, cập nhật trạng thái và làm sạch dữ liệu demo khi cần.
         </p>
-      </div>
 
-      <div className="wizard-card__section">
-        <div className="info-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-          <AdminStat label="Tổng dự án" value={stats.total} icon="📁" />
-          <AdminStat label="Chờ xử lý" value={stats.pending} icon="⏳" />
-          <AdminStat label="Đang thực hiện" value={stats.in_progress} icon="🚧" />
-          <AdminStat label="Đã duyệt" value={stats.approved} icon="✅" />
-          <AdminStat label="Chờ chỉnh sửa" value={stats.revision} icon="🛠️" />
-          <AdminStat label="Đã lưu trữ" value={stats.archived} icon="📦" />
+        <div style={{ marginTop: "28px" }}>
+          <div className="info-grid" style={{ marginBottom: "24px", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+            <AdminStat label="Tổng dự án" value={stats.total} icon="📁" />
+            <AdminStat label="Chờ xử lý" value={stats.pending} icon="⏳" />
+            <AdminStat label="Đang thực hiện" value={stats.in_progress} icon="🚧" />
+            <AdminStat label="Đã duyệt" value={stats.approved} icon="✅" />
+            <AdminStat label="Chờ chỉnh sửa" value={stats.revision} icon="🛠️" />
+            <AdminStat label="Đã lưu trữ" value={stats.archived} icon="📦" />
+          </div>
+
+          <div className="info-card" style={{ textAlign: "left" }}>
+            <h3 style={{ marginTop: 0 }}>Tổng quan trạng thái</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", marginTop: "16px" }}>
+              <MiniStat label="Đang hoạt động" value={stats.in_progress + stats.pending} />
+              <MiniStat label="Đã hoàn tất" value={stats.approved + stats.archived} />
+              <MiniStat label="Cần chú ý" value={stats.revision} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -127,6 +136,20 @@ function AdminStat({ label, value, icon }) {
       <div style={{ fontSize: "32px", marginBottom: "8px" }}>{icon}</div>
       <h3 style={{ margin: 0 }}>{value}</h3>
       <p style={{ margin: 0, fontSize: "0.85rem", opacity: 0.7 }}>{label}</p>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }) {
+  return (
+    <div style={{
+      borderRadius: "14px",
+      padding: "12px 16px",
+      background: "rgba(12,18,32,0.85)",
+      border: "1px solid rgba(255,255,255,0.08)",
+    }}>
+      <p style={{ margin: 0, fontSize: "0.85rem", letterSpacing: "0.06em", color: "rgba(226,233,255,0.7)" }}>{label}</p>
+      <p style={{ margin: "6px 0 0", fontSize: "1.5rem", fontWeight: 600 }}>{value}</p>
     </div>
   );
 }

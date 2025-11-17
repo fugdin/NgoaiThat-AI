@@ -1,7 +1,131 @@
 // External AI Services - Thay thế AWS Bedrock
 const axios = require('axios');
 const FormData = require('form-data');
+const { GoogleGenAI } = require('@google/genai');
 require('dotenv').config();
+
+let googleGenAiClient = null;
+
+const DEFAULT_IMAGE_ANALYSIS_MODELS = [
+  // Free-tier friendly models (ưu tiên gọi trước)
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-flash-001',
+  // Các model khác vẫn có thể miễn phí tùy quota, xếp sau
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-1.5-pro',
+];
+
+function buildModelList() {
+  const envList = [];
+
+  // Comma separated list to allow full control
+  if (process.env.GEMINI_IMAGE_ANALYSIS_MODELS) {
+    envList.push(
+      ...process.env.GEMINI_IMAGE_ANALYSIS_MODELS
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean)
+    );
+  }
+
+  envList.push(
+    process.env.GEMINI_IMAGE_ANALYSIS_MODEL,
+    process.env.GOOGLE_IMAGE_ANALYSIS_MODEL,
+    process.env.GOOGLE_GEMINI_MODEL
+  );
+
+  return Array.from(new Set([...envList.filter(Boolean), ...DEFAULT_IMAGE_ANALYSIS_MODELS]));
+}
+
+const GOOGLE_IMAGE_ANALYSIS_MODELS = buildModelList();
+
+const RETRYABLE_GOOGLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+
+function getGoogleGenAiClient() {
+  if (googleGenAiClient) return googleGenAiClient;
+
+  const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY1;
+  if (!apiKey) {
+    throw new Error('GOOGLE_API_KEY hoặc GOOGLE_API_KEY1 chưa được cấu hình trong .env');
+  }
+
+  const options = { apiKey };
+  const apiVersion =
+    process.env.GOOGLE_GENAI_API_VERSION ||
+    process.env.GOOGLE_AI_API_VERSION ||
+    process.env.GOOGLE_GENAI_DEFAULT_API_VERSION ||
+    'v1';
+  if (apiVersion) {
+    options.apiVersion = apiVersion;
+  }
+
+  if (process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true') {
+    if (!process.env.GOOGLE_CLOUD_PROJECT || !process.env.GOOGLE_CLOUD_LOCATION) {
+      throw new Error('Thiếu GOOGLE_CLOUD_PROJECT hoặc GOOGLE_CLOUD_LOCATION để dùng Vertex AI');
+    }
+    options.vertexai = true;
+    options.project = process.env.GOOGLE_CLOUD_PROJECT;
+    options.location = process.env.GOOGLE_CLOUD_LOCATION;
+  }
+
+  googleGenAiClient = new GoogleGenAI(options);
+  return googleGenAiClient;
+}
+
+function extractGeminiText(response) {
+  if (!response) return '';
+
+  // New SDK exposes .text as a getter, but handle both getter + method signatures
+  if (typeof response.text === 'function') {
+    const textValue = response.text();
+    if (textValue) return textValue.trim();
+  } else if (typeof response.text === 'string') {
+    return response.text.trim();
+  }
+
+  const candidates = response.candidates || [];
+  for (const candidate of candidates) {
+    const parts = candidate?.content?.parts || [];
+    const text = parts
+      .map((part) => part?.text || '')
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+    if (text) return text;
+  }
+
+  return '';
+}
+
+function isRetryableGoogleError(error) {
+  const status = Number(error?.status || error?.code || error?.response?.status);
+  if (Number.isFinite(status) && RETRYABLE_GOOGLE_STATUS.has(status)) {
+    return true;
+  }
+
+  const message = (error?.message || '').toLowerCase();
+  return (
+    message.includes('overloaded') ||
+    message.includes('unavailable') ||
+    message.includes('exceeded') ||
+    message.includes('timed out') ||
+    message.includes('deadline') ||
+    message.includes('try again')
+  );
+}
+
+function isModelUnavailableError(error) {
+  const status = Number(error?.status || error?.code || error?.response?.status);
+  if (status === 404) return true;
+  const message = (error?.message || '').toLowerCase();
+  return (
+    message.includes('not found') ||
+    message.includes('unsupported') ||
+    message.includes('listmodels')
+  );
+}
 
 /**
  * Phân tích ảnh bằng Google Gemini (nếu có API key)
@@ -11,33 +135,71 @@ require('dotenv').config();
  * @returns {Promise<string>} - Kết quả phân tích dạng text
  */
 async function analyzeImageWithGemini(imageBuffer, mimeType, prompt) {
-  try {
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY1;
-    
-    if (!apiKey) {
-      throw new Error('GOOGLE_API_KEY hoặc GOOGLE_API_KEY1 chưa được cấu hình trong .env');
-    }
+  const client = getGoogleGenAiClient();
+  const fallbackList = process.env.GEMINI_IMAGE_ANALYSIS_MODELS_FALLBACK
+    ? process.env.GEMINI_IMAGE_ANALYSIS_MODELS_FALLBACK.split(',').map((m) => m.trim()).filter(Boolean)
+    : [];
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const modelsToTry = (GOOGLE_IMAGE_ANALYSIS_MODELS.length
+    ? GOOGLE_IMAGE_ANALYSIS_MODELS
+    : ['gemini-1.5-flash']).concat(fallbackList);
 
-    const result = await model.generateContent([
-      { text: prompt },
-      {
-        inlineData: {
-          mimeType: mimeType,
-          data: imageBuffer.toString('base64'),
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        ...(prompt ? [{ text: prompt }] : []),
+        {
+          inlineData: {
+            mimeType: mimeType || 'image/jpeg',
+            data: imageBuffer.toString('base64'),
+          },
         },
-      },
-    ]);
+      ],
+    },
+  ];
 
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error('[Gemini Image Analysis Error]', error.message);
-    throw error;
+  const temperature = Number(process.env.GOOGLE_IMAGE_ANALYSIS_TEMPERATURE);
+  const maxTokens = Number(process.env.GOOGLE_IMAGE_ANALYSIS_MAX_TOKENS);
+  const config = {};
+
+  if (Number.isFinite(temperature)) {
+    config.temperature = temperature;
+  } else {
+    config.temperature = 0.2;
   }
+
+  if (Number.isFinite(maxTokens) && maxTokens > 0) {
+    config.maxOutputTokens = maxTokens;
+  }
+
+  let lastError = null;
+
+  for (const modelName of modelsToTry) {
+    try {
+      const response = await client.models.generateContent({
+        model: modelName,
+        contents,
+        config,
+      });
+
+      const analysisText = extractGeminiText(response);
+      if (!analysisText) {
+        throw new Error('Google AI Studio không trả về nội dung phân tích.');
+      }
+
+      return analysisText;
+    } catch (error) {
+      lastError = error;
+      console.error(`[Gemini Image Analysis Error][${modelName}]`, error?.message || error);
+
+      if (!isRetryableGoogleError(error) && !isModelUnavailableError(error)) {
+        break;
+      }
+    }
+  }
+
+  throw lastError || new Error('Không thể phân tích ảnh với Google AI Studio.');
 }
 
 /**
@@ -52,7 +214,7 @@ async function analyzeImage(imageBuffer, mimeType, prompt = '') {
     return await analyzeImageWithGemini(imageBuffer, mimeType, prompt);
   } catch (error) {
     console.error('[Image Analysis Error]', error);
-    throw new Error(`Không thể phân tích ảnh. Vui lòng cấu hình GOOGLE_API_KEY trong .env. Error: ${error.message}`);
+    throw new Error(`Không thể phân tích ảnh bằng Google AI Studio. Chi tiết: ${error.message}`);
   }
 }
 
