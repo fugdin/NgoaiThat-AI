@@ -133,7 +133,8 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
           return;
         }
 
-        const tempId = response?.tempId || createHistoryId();
+        const payloadTempId = response?.data?.tempId || response?.tempId;
+        const tempId = payloadTempId || createHistoryId();
         const message =
           response?.message ||
           "Tải ảnh mẫu thành công. Chọn Tiếp tục để sang bước kế tiếp.";
@@ -144,6 +145,8 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
           sampleImage: prev.sampleImage
             ? { ...prev.sampleImage, tempId }
             : prev.sampleImage,
+          sampleImageUrl:
+            prev.sampleImage?.dataUrl || response?.data?.sampleImageUrl || null,
         }));
 
         setApiMessages((prev) => ({ ...prev, sample: message }));

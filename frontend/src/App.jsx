@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminDashboard from "./components/AdminDashboard.jsx";
+import AdminUserManagement from "./components/AdminUserManagement.jsx";
 import HistoryViewer from "./components/HistoryViewer.jsx";
 import LoginPage from "./components/LoginPage.jsx";
 import RegisterPage from "./components/RegisterPage.jsx";
@@ -114,6 +115,15 @@ function Icon({ name, size = 18, className }) {
           <path d="m7 9-3 3 3 3" />
         </svg>
       );
+    case "users":
+      return (
+        <svg {...props}>
+          <circle cx="9" cy="10" r="2.8" />
+          <path d="M4.5 18.5a4.8 4.8 0 0 1 9 0" />
+          <circle cx="16" cy="9" r="2.2" />
+          <path d="M13 18.5c.3-2.1 1.9-3.4 3.8-3.4 1 0 2 .3 2.7.9" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -209,7 +219,7 @@ useEffect(() => {
   }, [user]);
 
   useEffect(() => {
-    if (user?.role !== "admin" && activeView === "admin") {
+    if (user?.role !== "admin" && (activeView === "admin" || activeView === "admin-users")) {
       setActiveView("wizard");
     }
   }, [activeView, user?.role]);
@@ -268,7 +278,7 @@ useEffect(() => {
       { id: "profile", label: "Hồ sơ", icon: "user" },
     ];
     if (user?.role === "admin") {
-      items.push({ id: "admin", label: "Quản trị", icon: "shield" });
+      items.push({ id: "admin-users", label: "Người dùng", icon: "users" });
     }
     return items;
   }, [user?.role]);
@@ -419,6 +429,21 @@ useEffect(() => {
     );
   }
 
+  const headerTitle = useMemo(() => {
+    switch (activeView) {
+      case "admin":
+        return "Bảng điều khiển quản trị";
+      case "admin-users":
+        return "Quản lý người dùng";
+      case "profile":
+        return "Hồ sơ cá nhân";
+      case "history":
+        return "Lịch sử dự án";
+      default:
+        return "Trợ lý thiết kế ngoại thất thông minh";
+    }
+  }, [activeView]);
+
   if (!user) {
     if (authMode === "register") {
       return (
@@ -437,11 +462,6 @@ useEffect(() => {
       />
     );
   }
-
-  const headerTitle =
-    activeView === "admin"
-      ? "Bảng điều khiển quản trị"
-      : "Trợ lý thiết kế ngoại thất thông minh";
 
   return (
     <div className="app-shell">
@@ -632,6 +652,8 @@ useEffect(() => {
               historyEntries={personalHistory}
               draft={wizardData}
             />
+          ) : activeView === "admin-users" ? (
+            <AdminUserManagement token={user.token} />
           ) : (
             <AdminDashboard
               history={history}

@@ -22,6 +22,7 @@ cd backend
 npm install
 npm run dev
 ```
+- **Env**: them bien `GEMINI_API_KEY` (co the dat them `GEMINI_MODEL`, mac dinh `gemini-1.5-pro-latest`) de bat tinh nang to mau anh voi Gemini.
 # **HỆ THỐNG GỢI Ý NGOẠI THẤT CĂN NHÀ**
 
 **Phân tích & Thiết kế hệ thống — Sinh viên năm 4**
@@ -111,6 +112,8 @@ graph TD
 * Đăng nhập với quyền admin.
 * Quản lý người dùng, thống kê số lượng yêu cầu và lượt sinh ảnh.
 * Theo dõi log và tình trạng API.
+
+> **Tài khoản mặc định:** hệ thống tự tạo (hoặc cập nhật) tài khoản admin `admin@ngoai-that.ai` với mật khẩu `Admin@123456` khi backend khởi động. Có thể thay đổi qua biến môi trường `DEFAULT_ADMIN_EMAIL` và `DEFAULT_ADMIN_PASSWORD`.
 
 ---
 

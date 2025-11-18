@@ -31,30 +31,43 @@ function useHistoryManager(user) {
   const saveHistory = useCallback(
     (wizardSnapshot, notes) => {
       if (!wizardSnapshot) return;
+      const sampleSource =
+        wizardSnapshot.sampleImage?.dataUrl ||
+        wizardSnapshot.sampleImage?.preview ||
+        "";
+      const houseSource =
+        wizardSnapshot.houseImage?.dataUrl ||
+        wizardSnapshot.houseImage?.preview ||
+        "";
+      const resultSource =
+        wizardSnapshot.result?.outputImageUrl || houseSource || sampleSource || "";
+
       const entry = {
         id: createHistoryId(),
         createdAt: new Date().toISOString(),
         createdBy: user?.email ?? "unknown",
-        createdByName: user?.name ?? "Người dùng",
+        createdByName: user?.name ?? "Nguoi dung",
         style: wizardSnapshot.requirements?.style,
         colorPalette: wizardSnapshot.requirements?.colorPalette,
         decorItems: wizardSnapshot.requirements?.decorItems,
         aiSuggestions: wizardSnapshot.requirements?.aiSuggestions,
         notes,
         status: "pending",
-        outputImageUrl: wizardSnapshot.result?.outputImageUrl ?? "",
-        sampleImageDataUrl: wizardSnapshot.sampleImage?.dataUrl || "",
+        outputImageUrl: resultSource,
+        sampleImageUrl: sampleSource,
+        sampleImageDataUrl: sampleSource,
         sampleImageName:
           wizardSnapshot.sampleImage?.name ||
           wizardSnapshot.sampleImage?.file?.name ||
           "",
-        houseImageDataUrl: wizardSnapshot.houseImage?.dataUrl || "",
+        houseImageUrl: houseSource,
+        houseImageDataUrl: houseSource,
         houseImageName:
           wizardSnapshot.houseImage?.name ||
           wizardSnapshot.houseImage?.file?.name ||
           "",
+        resultIsOriginal: (!wizardSnapshot.result?.outputImageUrl) && Boolean(houseSource),
       };
-
       setHistory((prev) => [...prev, entry]);
     },
     [user?.email, user?.name]
