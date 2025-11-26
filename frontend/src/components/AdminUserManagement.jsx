@@ -10,9 +10,7 @@ const ROLE_FILTERS = [
 function formatDate(value) {
   if (!value) return "Chưa cập nhật";
   try {
-    return new Date(value).toLocaleString("vi-VN", {
-      hour12: false,
-    });
+    return new Date(value).toLocaleString("vi-VN", { hour12: false });
   } catch (_error) {
     return value;
   }
@@ -68,7 +66,7 @@ function AdminUserManagement({ token }) {
       {
         label: "Tổng tài khoản",
         value: totalUsers,
-        description: "Tất cả người dùng trong hệ thống",
+        description: "Toàn bộ người dùng",
       },
       {
         label: "Admin",
@@ -81,48 +79,55 @@ function AdminUserManagement({ token }) {
         description: "Tài khoản tiêu chuẩn",
       },
       {
-        label: "Lượt sinh (trang)",
+        label: "Lượt sinh",
         value: totalGenerations,
-        description: "Tổng lượt sinh của danh sách hiện tại",
+        description: "Tổng lượt sinh hiển thị",
       },
     ];
   }, [meta, users]);
 
   return (
-    <div className="space-y-8">
-      <section className="wizard-card__section" style={{ textAlign: "center" }}>
-        <div style={{ fontSize: "40px" }}>🗂️</div>
-        <h2 className="wizard-card__title">Quản lý tài khoản</h2>
-        <p className="wizard-card__subtitle">
-          Dữ liệu lấy trực tiếp từ bảng Users và Generations, giúp bạn theo dõi số lượng tài khoản và mức độ hoạt động.
-        </p>
+    <section className="admin-surface" aria-label="Quản lý tài khoản">
+      <div className="admin-panel admin-panel--split">
+        <article className="admin-card admin-card--users">
+          <header className="admin-card__header">
+            <div>
+              <p className="admin-eyebrow">Người dùng</p>
+              <h2>Ảnh hưởng toàn hệ thống</h2>
+            </div>
+            <span className="admin-pill">{meta.total} tài khoản</span>
+          </header>
+          <p className="admin-card__lead">
+            Theo dõi phân bổ quyền truy cập và mức độ sử dụng AI của từng người dùng.
+          </p>
+          <div className="admin-grid admin-grid--stats">
+            {stats.map((item) => (
+              <UserStat key={item.label} {...item} />
+            ))}
+          </div>
+        </article>
 
-        <div className="info-grid" style={{ marginTop: "28px" }}>
-          {stats.map((item) => (
-            <AdminStat key={item.label} {...item} />
-          ))}
-        </div>
-      </section>
-
-      <section className="wizard-card__section">
-        <div className="timeline-card" style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "center" }}>
-          <div style={{ flex: "1 1 240px", display: "flex", gap: "12px", alignItems: "center" }}>
-            <span className="tag">Tìm kiếm</span>
+        <aside className="admin-card admin-card--filters">
+          <label className="admin-input__label" htmlFor="user-search">
+            Tìm kiếm
+          </label>
+          <div className="admin-input">
             <input
+              id="user-search"
               type="search"
-              className="input-text"
-              placeholder="Email người dùng"
+              placeholder="Nhập email hoặc tên người dùng"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          <p className="admin-eyebrow">Phân quyền</p>
+          <div className="admin-chip-group admin-chip-group--wrap">
             {ROLE_FILTERS.map((filter) => (
               <button
                 key={filter.value}
                 type="button"
-                className={`btn ${roleFilter === filter.value ? "btn-primary" : "btn-secondary"}`}
+                className={`admin-chip ${roleFilter === filter.value ? "is-active" : ""}`}
                 onClick={() => setRoleFilter(filter.value)}
               >
                 {filter.label}
@@ -130,153 +135,127 @@ function AdminUserManagement({ token }) {
             ))}
           </div>
 
-          <button type="button" className="btn btn-ghost" onClick={() => refresh({ search, role: roleFilter })}>
-            Làm mới
+          <button
+            type="button"
+            className="admin-button"
+            onClick={() => refresh({ search, role: roleFilter })}
+          >
+            Làm mới dữ liệu
           </button>
-        </div>
-      </section>
+          {loading ? (
+            <p className="admin-card__meta">Đang đồng bộ...</p>
+          ) : (
+            <p className="admin-card__meta">
+              {meta.total} tài khoản · cập nhật {new Date().toLocaleTimeString("vi-VN")}
+            </p>
+          )}
+        </aside>
+      </div>
 
-      <div
-        className="info-grid"
-        style={{ gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)", alignItems: "flex-start" }}
-      >
-        <section className="wizard-card__section">
-          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+      <div className="admin-panel admin-panel--columns">
+        <article className="admin-card admin-card--table">
+          <header className="admin-card__header admin-card__header--table">
             <div>
-              <h3 style={{ margin: 0 }}>Danh sách người dùng</h3>
-              <p style={{ margin: 0, color: "rgba(226,233,255,0.7)", fontSize: "0.9rem" }}>
-                Kết quả lọc từ cơ sở dữ liệu.
-              </p>
+              <p className="admin-eyebrow">Danh sách người dùng</p>
+              <h3>Kết quả lọc hiện tại</h3>
             </div>
-            <span className="tag">{meta.total} tài khoản</span>
+            <span className="admin-pill admin-pill--ghost">
+              {users.length} mục
+            </span>
           </header>
 
-          {error ? (
-            <div className="alert error">{error}</div>
-          ) : null}
+          {error ? <div className="admin-empty">{error}</div> : null}
 
           {users.length ? (
-            <div className="history-grid">
+            <div className="admin-user-list">
               {users.map((user) => (
-                <article
+                <button
                   key={user.id}
-                  className="history-card"
-                  style={{
-                    borderColor: selectedUserId === user.id ? "rgba(255, 207, 134, 0.6)" : undefined,
-                    cursor: "pointer",
-                  }}
+                  type="button"
+                  className={`admin-user ${selectedUserId === user.id ? "is-active" : ""}`}
                   onClick={() => setSelectedUserId(user.id)}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
-                    <div>
-                      <div className="tag tag--accent">#{String(user.id).padStart(4, "0")}</div>
-                      <h4 style={{ margin: "6px 0 0" }}>{deriveNameFromEmail(user.email)}</h4>
-                      <p style={{ margin: "4px 0", fontSize: "0.9rem", opacity: 0.75 }}>{user.email}</p>
+                  <div className="admin-user__avatar">
+                    {deriveNameFromEmail(user.email).slice(0, 2)}
+                  </div>
+                  <div className="admin-user__body">
+                    <div className="admin-user__row">
+                      <strong>{deriveNameFromEmail(user.email)}</strong>
+                      <span className={`admin-badge admin-badge--${user.role === "admin" ? "accent" : "muted"}`}>
+                        {user.role === "admin" ? "Admin" : "User"}
+                      </span>
                     </div>
-                    <span className="tag">{user.role === "admin" ? "Admin" : "User"}</span>
+                    <p>{user.email}</p>
+                    <div className="admin-user__meta">
+                      <span>Lượt sinh: {user.generationCount || 0}</span>
+                      <span>Tạo: {formatDate(user.createdAt)}</span>
+                    </div>
                   </div>
-
-                  <p style={{ margin: "10px 0", fontSize: "0.9rem" }}>
-                    <strong>Ngày tạo:</strong> {formatDate(user.createdAt)}
-                  </p>
-
-                  <div className="info-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
-                    <MiniStat label="Lượt sinh" value={user.generationCount} />
-                    <MiniStat label="Cuối cùng" value={formatDate(user.lastGenerationAt)} />
-                  </div>
-                </article>
+                </button>
               ))}
             </div>
           ) : (
-            <div className="alert info" style={{ marginTop: "16px" }}>
+            <div className="admin-empty">
               {loading ? "Đang tải dữ liệu người dùng..." : "Không có người dùng nào phù hợp bộ lọc."}
             </div>
           )}
+        </article>
 
-          {loading ? (
-            <p style={{ marginTop: "12px", fontStyle: "italic", color: "rgba(226,233,255,0.7)" }}>
-              Đang đồng bộ dữ liệu...
-            </p>
-          ) : null}
-        </section>
-
-        <section className="wizard-card__section">
+        <aside className="admin-card admin-card--spotlight">
           {selectedUser ? (
-            <div className="space-y-6">
-              <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <header className="admin-card__header admin-card__header--tight">
                 <div>
-                  <h3 style={{ margin: 0 }}>{deriveNameFromEmail(selectedUser.email)}</h3>
-                  <p style={{ margin: "4px 0 0", color: "rgba(226,233,255,0.7)", fontSize: "0.9rem" }}>
-                    {selectedUser.email}
-                  </p>
+                  <p className="admin-eyebrow">Chi tiết</p>
+                  <h3>{deriveNameFromEmail(selectedUser.email)}</h3>
                 </div>
-                <span className="tag">{selectedUser.role === "admin" ? "Admin" : "User"}</span>
+                <span className="admin-pill">
+                  {selectedUser.role === "admin" ? "Admin" : "User"}
+                </span>
               </header>
-
-              <div className="timeline-card">
-                <h4>Thông tin chung</h4>
-                <ul style={{ listStyle: "none", margin: 0, padding: 0, lineHeight: 1.7 }}>
-                  <li>
-                    <strong>ID:</strong> {selectedUser.id}
-                  </li>
-                  <li>
-                    <strong>Tạo lúc:</strong> {formatDate(selectedUser.createdAt)}
-                  </li>
-                  <li>
-                    <strong>Lượt sinh:</strong> {selectedUser.generationCount}
-                  </li>
-                  <li>
-                    <strong>Hoạt động gần nhất:</strong> {formatDate(selectedUser.lastGenerationAt)}
-                  </li>
-                </ul>
-              </div>
-
-              <div className="timeline-card">
-                <h4>Sơ kết hoạt động</h4>
-                <p style={{ margin: 0, color: "rgba(226,233,255,0.75)" }}>
-                  Người dùng này đã tạo {selectedUser.generationCount} lượt sinh trong hệ thống.
-                </p>
-                <p style={{ marginTop: "8px", fontSize: "0.85rem", color: "rgba(226,233,255,0.65)" }}>
-                  Số liệu được tổng hợp trực tiếp từ bảng Generations nên phản ánh chính xác log backend.
-                </p>
-              </div>
+              <ul className="admin-detail-list">
+                <li>
+                  <p>ID</p>
+                  <strong>{selectedUser.id}</strong>
+                </li>
+                <li>
+                  <p>Email</p>
+                  <strong>{selectedUser.email}</strong>
+                </li>
+                <li>
+                  <p>Tạo lúc</p>
+                  <strong>{formatDate(selectedUser.createdAt)}</strong>
+                </li>
+                <li>
+                  <p>Hoạt động cuối</p>
+                  <strong>{formatDate(selectedUser.lastGenerationAt)}</strong>
+                </li>
+                <li>
+                  <p>Tổng lượt sinh</p>
+                  <strong>{selectedUser.generationCount || 0}</strong>
+                </li>
+              </ul>
             </div>
           ) : (
-            <div className="alert info">Chọn một người dùng để xem chi tiết.</div>
+            <div className="admin-empty">
+              Chọn một tài khoản để xem chi tiết hoạt động.
+            </div>
           )}
-        </section>
+        </aside>
       </div>
-    </div>
+    </section>
   );
 }
 
-function AdminStat({ label, value, description }) {
+function UserStat({ label, value, description }) {
   return (
-    <article className="info-card" style={{ textAlign: "left" }}>
-      <p style={{ margin: 0, fontSize: "2rem", fontWeight: 600 }}>{value}</p>
-      <p style={{ margin: "6px 0 0", fontWeight: 600 }}>{label}</p>
-      <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "rgba(226,233,255,0.7)" }}>{description}</p>
+    <article className="admin-stat admin-stat--light">
+      <h4>{value}</h4>
+      <p>{label}</p>
+      <span>{description}</span>
     </article>
   );
 }
 
-function MiniStat({ label, value }) {
-  return (
-    <div className="info-card" style={{ padding: "12px 16px" }}>
-      <p
-        style={{
-          margin: 0,
-          fontSize: "0.85rem",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "rgba(226,233,255,0.65)",
-        }}
-      >
-        {label}
-      </p>
-      <p style={{ margin: "6px 0 0", fontWeight: 600 }}>{value || "--"}</p>
-    </div>
-  );
-}
-
 export default AdminUserManagement;
+
