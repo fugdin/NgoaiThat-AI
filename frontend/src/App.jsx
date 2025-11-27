@@ -219,7 +219,10 @@ useEffect(() => {
   }, [user]);
 
   useEffect(() => {
-    if (user?.role !== "admin" && (activeView === "admin" || activeView === "admin-users")) {
+    if (
+      user?.role !== "admin" &&
+      (activeView === "admin-dashboard" || activeView === "admin-users")
+    ) {
       setActiveView("wizard");
     }
   }, [activeView, user?.role]);
@@ -278,7 +281,10 @@ useEffect(() => {
       { id: "profile", label: "Hồ sơ", icon: "user" },
     ];
     if (user?.role === "admin") {
-      items.push({ id: "admin-users", label: "Người dùng", icon: "users" });
+      items.push(
+        { id: "admin-dashboard", label: "Quản trị", icon: "shield" },
+        { id: "admin-users", label: "Người dùng", icon: "users" }
+      );
     }
     return items;
   }, [user?.role]);
@@ -431,7 +437,7 @@ useEffect(() => {
 
   const headerTitle = useMemo(() => {
     switch (activeView) {
-      case "admin":
+      case "admin-dashboard":
         return "Bảng điều khiển quản trị";
       case "admin-users":
         return "Quản lý người dùng";
@@ -654,6 +660,12 @@ useEffect(() => {
             />
           ) : activeView === "admin-users" ? (
             <AdminUserManagement token={user.token} />
+          ) : activeView === "admin-dashboard" ? (
+            <AdminDashboard
+              history={history}
+              onUpdateStatus={updateHistoryStatus}
+              onForceClear={forceClearHistory}
+            />
           ) : (
             <AdminDashboard
               history={history}

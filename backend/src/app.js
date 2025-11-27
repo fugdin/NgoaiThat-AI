@@ -8,6 +8,8 @@ const { testDb } = require("./db");
 const wizardRoutes = require("./routes/wizard");
 const historiesRoutes = require("./routes/histories");
 const usersRoutes = require("./routes/users");
+const adminRoutes = require("./routes/admin");
+
 
 // 🧩 middlewares
 const respond = require("./middlewares/respond");
@@ -16,8 +18,19 @@ const activityLogger = require("./middlewares/activityLogger");
 const fileUpload = require("express-fileupload");
 const auth = require("./middlewares/auth");
 const multer = require("multer");
+const requireAdmin = require("./middlewares/isAdmin");
+
 
 const app = express();
+app.use((req, res, next) => {
+  res.ok = (data) => {
+    res.json({
+      ok: true,
+      ...data
+    });
+  };
+  next();
+});
 
 // ✅ Cấu hình cơ bản
 app.use(cors());
@@ -37,6 +50,12 @@ app.use(
   }),
   wizardRoutes
 );
+app.use(
+  fileUpload({
+    useTempFiles: true,
+    tempFileDir: "/tmp/",
+  })
+);
 
 // ✅ Route khác (generate-style, generate-final, histories, users)
 
@@ -47,6 +66,7 @@ app.use("/api/users", usersRoutes);
 app.use("/api/secure", auth, wizardRoutes);
 app.use("/api/secure", auth, historiesRoutes);
 
+app.use("/api/admin", auth, requireAdmin, adminRoutes);
 // ✅ Chuẩn hóa phản hồi
 app.use(respond);
 

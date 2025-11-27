@@ -1,6 +1,23 @@
 // db.js
 const sql = require("mssql");
 
+const pool = new sql.ConnectionPool({
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  server: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  options: {
+    encrypt: false,
+    trustServerCertificate: true,
+    enableArithAbort: true,
+    multipleStatements: true,    // <--- Cái này CỰC QUAN TRỌNG
+    multipleActiveResultSets: true, // <--- BẮT BUỘC
+    useUTC: true,
+    rowCollectionOnDone: true
+  }
+});
+
+
 // Base config (dùng chung cho SQL Auth & Windows Auth)
 const base = {
   server: process.env.DB_SERVER || "localhost",
