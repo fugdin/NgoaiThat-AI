@@ -8,7 +8,7 @@ function ResultStep({ data, history, onSaveHistory, onBack, onRestart, apiMessag
   useEffect(() => {
     setNotes("");
     setIsSaved(false);
-  }, [data?.result?.outputImageUrl, data?.houseImage?.preview]);
+  }, [data?.result?.data.outputImage, data?.houseImage?.preview]);
 
   const formattedHistory = useMemo(
     () =>
@@ -31,12 +31,11 @@ function ResultStep({ data, history, onSaveHistory, onBack, onRestart, apiMessag
 
   const { requirements, sampleImage, houseImage, result, stylePlan } = data;
 
-  const sampleImageSrc =
-    sampleImage?.preview || sampleImage?.dataUrl || sampleImage?.url || "";
+  const sampleImageSrc = sampleImage?.dataUrl || sampleImage?.url || "";
   const houseImageSrc =
     houseImage?.preview || houseImage?.dataUrl || houseImage?.url || "";
-  const resultImageSrc = result?.outputImageUrl || houseImageSrc || "";
-  const resultIsOriginal = !result?.outputImageUrl && !!houseImageSrc;
+  const resultImageSrc = result?.data.outputImage  || "";
+  const resultIsOriginal = !result?.outputImage && !!houseImageSrc;
 
   const styleSummary =
     typeof stylePlan === "string"
@@ -45,6 +44,8 @@ function ResultStep({ data, history, onSaveHistory, onBack, onRestart, apiMessag
       ? stylePlan.combined.join(", ")
       : stylePlan?.promptHint || "";
 
+console.log("Rendered ResultStep with data:", data);
+
   return (
     <div>
       <div className="wizard-card__section">
@@ -52,7 +53,7 @@ function ResultStep({ data, history, onSaveHistory, onBack, onRestart, apiMessag
           <div style={{ fontSize: "44px", letterSpacing: "0.2em", opacity: 0.6 }}>
             BUOC 04
           </div>
-          <h2 className="wizard-card__title">Kham pha phuong an goi y</h2>
+          <h2 className="wizard-card__title">Kham pha phuong an goi y</h2>        
           <p className="wizard-card__subtitle">
             AI da ap dung phong cach ban chon len anh hien trang. Ban co the so
             sanh, ghi chu va luu lai phuong an nay.
