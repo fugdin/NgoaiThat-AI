@@ -308,4 +308,3 @@ Hãy sử dụng ảnh nhà thô làm nền bắt buộc, bám sát cấu trúc 
 });
 
 module.exports = router;
-

@@ -12,7 +12,7 @@ const cloneInitialData = () => createInitialData();
 const cloneInitialLoading = () => createInitialLoading();
 const cloneInitialMessages = () => createInitialMessages();
 
-function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
+function useWizardFlow({ steps = [], pushToast = () => {}, user } = {}) {
   const totalSteps = Array.isArray(steps) ? steps.length : 0;
   const [stepIndex, setStepIndex] = useState(0);
   const [wizardData, setWizardData] = useState(cloneInitialData);
@@ -304,6 +304,18 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
       }));
       return;
     }
+    if (!user?.token) {
+    setApiMessages((prev) => ({
+      ...prev,
+      house: "Bạn cần đăng nhập trước khi tạo ảnh.",
+    }));
+    pushToast({
+      variant: "error",
+      title: "Thiếu token",
+      message: "Vui lòng đăng nhập lại để hệ thống gửi kèm token.",
+    });
+    return;
+  }
 
     const tempId = wizardData.tempId || createHistoryId();
     setWizardData((prev) => ({ ...prev, tempId }));
@@ -315,7 +327,8 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
       const response = await generateFinal(
         tempId,
         wizardData.houseImage.file,
-        wizardData.requirements
+        wizardData.requirements,
+        user.token
       );
 
       if (!response || response.ok === false || response.error) {
@@ -334,10 +347,15 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
       }
 
       const resultPayload = response?.result || response;
+      const resolvedOutputImage =
+        resultPayload?.data?.outputImage || resultPayload?.outputImage || "";
 
       setWizardData((prev) => ({
         ...prev,
+        // Lưu toàn bộ payload để ResultStep có thể đọc result?.data.outputImage
         result: resultPayload,
+        // Đồng thời lưu phẳng URL ảnh kết quả để History manager dễ truy cập
+        outputImage: resolvedOutputImage,
       }));
 
       setApiMessages((prev) => ({
@@ -365,7 +383,7 @@ function useWizardFlow({ steps = [], pushToast = () => {} } = {}) {
     } finally {
       setLoadingState((prev) => ({ ...prev, house: false }));
     }
-  }, [wizardData, goNext, pushToast]);
+  }, [wizardData, goNext, pushToast, user]);
 
   const disableNextSample = !wizardData.sampleImage || loadingState.sample;
   const disableNextHouse = !wizardData.houseImage || loadingState.house;

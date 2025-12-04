@@ -40,7 +40,10 @@ function useHistoryManager(user) {
         wizardSnapshot.houseImage?.preview ||
         "";
       const resultSource =
-        wizardSnapshot.result?.outputImageUrl || houseSource || sampleSource || "";
+        wizardSnapshot.outputImage ||
+        wizardSnapshot.result?.data?.outputImage ||
+        wizardSnapshot.result?.outputImage ||
+        "";
 
       const entry = {
         id: createHistoryId(),
@@ -66,8 +69,10 @@ function useHistoryManager(user) {
           wizardSnapshot.houseImage?.name ||
           wizardSnapshot.houseImage?.file?.name ||
           "",
-        resultIsOriginal: (!wizardSnapshot.result?.outputImageUrl) && Boolean(houseSource),
+        resultIsOriginal:
+          !wizardSnapshot.result?.data?.outputImage && Boolean(houseSource),
       };
+      debugger;
       setHistory((prev) => [...prev, entry]);
     },
     [user?.email, user?.name]
@@ -81,6 +86,10 @@ function useHistoryManager(user) {
           : entry
       )
     );
+  }, []);
+
+  const deleteHistoryEntry = useCallback((entryId) => {
+    setHistory((prev) => prev.filter((entry) => entry.id !== entryId));
   }, []);
 
   const forceClearHistory = useCallback(() => {
@@ -112,6 +121,7 @@ function useHistoryManager(user) {
     personalHistory,
     saveHistory,
     updateHistoryStatus,
+    deleteHistoryEntry,
     forceClearHistory,
   };
 }

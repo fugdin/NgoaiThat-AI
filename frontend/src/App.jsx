@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import AdminDashboard from "./components/AdminDashboard.jsx";
-import AdminUserManagement from "./components/AdminUserManagement.jsx";
 import HistoryViewer from "./components/HistoryViewer.jsx";
 import LoginPage from "./components/LoginPage.jsx";
 import RegisterPage from "./components/RegisterPage.jsx";
@@ -15,6 +13,7 @@ import { loginUser, registerUser } from "./api/auth";
 import useToasts from "./hooks/useToasts.js";
 import useWizardFlow from "./hooks/useWizardFlow.js";
 import useHistoryManager from "./hooks/useHistoryManager.js";
+import AdminLayout from "./components/AdminLayout.jsx";
 
 const iconBaseProps = {
   viewBox: "0 0 24 24",
@@ -172,6 +171,7 @@ function App() {
   const [authNotice, setAuthNotice] = useState("");
   const [authPrefillEmail, setAuthPrefillEmail] = useState("");
   const [activeView, setActiveView] = useState("wizard");
+  const [isAdminArea, setIsAdminArea] = useState(false);
 
   const { toasts, pushToast, dismissToast } = useToasts();
   const {
@@ -191,7 +191,7 @@ function App() {
     handleGenerateStyle,
     handleHouseSelected,
     handleGenerateFinal,
-  } = useWizardFlow({ steps, pushToast });
+  } = useWizardFlow({ steps, pushToast, user  });
 
   const {
     history,
@@ -199,6 +199,7 @@ function App() {
     personalHistory,
     saveHistory,
     updateHistoryStatus,
+    deleteHistoryEntry,
     forceClearHistory,
   } = useHistoryManager(user);
 
@@ -219,13 +220,10 @@ useEffect(() => {
   }, [user]);
 
   useEffect(() => {
-    if (
-      user?.role !== "admin" &&
-      (activeView === "admin-dashboard" || activeView === "admin-users")
-    ) {
-      setActiveView("wizard");
+    if (user?.role !== "admin") {
+      setIsAdminArea(false);
     }
-  }, [activeView, user?.role]);
+  }, [user?.role]);
 
   useEffect(() => {
     if (!user || activeView !== "history") return;
@@ -281,10 +279,7 @@ useEffect(() => {
       { id: "profile", label: "Hồ sơ", icon: "user" },
     ];
     if (user?.role === "admin") {
-      items.push(
-        { id: "admin-dashboard", label: "Quản trị", icon: "shield" },
-        { id: "admin-users", label: "Người dùng", icon: "users" }
-      );
+      items.push({ id: "admin-area", label: "Quản trị", icon: "shield" });
     }
     return items;
   }, [user?.role]);
@@ -428,6 +423,7 @@ useEffect(() => {
         data={wizardData}
         history={visibleHistory}
         onSaveHistory={(notes) => saveHistory(wizardData, notes)}
+        onDeleteHistory={deleteHistoryEntry}
         onBack={goBack}
         onRestart={resetWizard}
         apiMessage={apiMessages.result}
@@ -437,10 +433,6 @@ useEffect(() => {
 
   const headerTitle = useMemo(() => {
     switch (activeView) {
-      case "admin-dashboard":
-        return "Bảng điều khiển quản trị";
-      case "admin-users":
-        return "Quản lý người dùng";
       case "profile":
         return "Hồ sơ cá nhân";
       case "history":
@@ -449,6 +441,10 @@ useEffect(() => {
         return "Trợ lý thiết kế ngoại thất thông minh";
     }
   }, [activeView]);
+
+  if (user?.role === "admin" && isAdminArea) {
+    return <AdminLayout user={user} onExit={() => setIsAdminArea(false)} />;
+  }
 
   if (!user) {
     if (authMode === "register") {
@@ -512,12 +508,24 @@ useEffect(() => {
 
             <nav className="app-nav" aria-label="Điều hướng">
               {navigationItems.map(({ id, label, icon }) => {
-                const isActive = activeView === id;
+                const isActive =
+                  id === "admin-area"
+                    ? isAdminArea
+                    : !isAdminArea && activeView === id;
                 return (
                   <button
                     key={id}
                     type="button"
-                    onClick={() => setActiveView(id)}
+                    onClick={() => {
+                      if (id === "admin-area") {
+                        if (user?.role === "admin") {
+                          setIsAdminArea(true);
+                        }
+                      } else {
+                        setIsAdminArea(false);
+                        setActiveView(id);
+                      }
+                    }}
                     className={`nav-chip${isActive ? " nav-chip--active" : ""}`}
                     aria-current={isActive ? "page" : undefined}
                   >
@@ -581,13 +589,23 @@ useEffect(() => {
 
               <nav className="quick-menu__nav" aria-label="Menu điều hướng">
                 {navigationItems.map(({ id, label, icon }) => {
-                  const isActive = activeView === id;
+                  const isActive =
+                    id === "admin-area"
+                      ? isAdminArea
+                      : !isAdminArea && activeView === id;
                   return (
                     <button
                       key={id}
                       type="button"
                       onClick={() => {
-                        setActiveView(id);
+                        if (id === "admin-area") {
+                          if (user?.role === "admin") {
+                            setIsAdminArea(true);
+                          }
+                        } else {
+                          setIsAdminArea(false);
+                          setActiveView(id);
+                        }
                         setIsQuickMenuOpen(false);
                       }}
                       className={`quick-menu__item${isActive ? " is-active" : ""}`}
@@ -635,12 +653,13 @@ useEffect(() => {
           </div>
         )}
 
-        <div className="app-stage">
+          <div className="app-stage">
           {activeView === "wizard" ? (
             stepContent
           ) : activeView === "history" ? (
             <HistoryViewer
               entries={visibleHistory}
+              onDeleteHistory={deleteHistoryEntry}
               title={
                 user.role === "admin"
                   ? "Lịch sử dự án"
@@ -656,24 +675,18 @@ useEffect(() => {
             <ProfilePage
               user={user}
               historyEntries={personalHistory}
+              onDeleteHistory={deleteHistoryEntry}
               draft={wizardData}
             />
           ) : activeView === "admin-users" ? (
             <AdminUserManagement token={user.token} />
           ) : activeView === "admin-dashboard" ? (
-            <AdminDashboard
-              history={history}
-              onUpdateStatus={updateHistoryStatus}
-              onForceClear={forceClearHistory}
-            />
-          ) : (
-            <AdminDashboard
-              history={history}
-              onUpdateStatus={updateHistoryStatus}
-              onForceClear={forceClearHistory}
-            />
-          )}
+            // ✅ Truyền token cho AdminDashboardPage
+            <AdminDashboardPage token={user.token} />
+          ) : null}
         </div>
+
+
       </main>
 
       <footer className="app-footer">

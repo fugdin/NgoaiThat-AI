@@ -1,4 +1,4 @@
-function HistoryViewer({ entries, title, emptyMessage }) {
+function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
   return (
     <div>
       <div
@@ -47,6 +47,17 @@ function HistoryViewer({ entries, title, emptyMessage }) {
                   <p style={{ fontSize: "0.8rem", opacity: 0.65 }}>
                     <strong>Ghi chu nguoi dung:</strong> {entry.notes}
                   </p>
+                ) : null}
+
+                {typeof onDeleteHistory === "function" ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ marginTop: "8px", fontSize: "0.78rem" }}
+                    onClick={() => onDeleteHistory(entry.id)}
+                  >
+                    Xoa khoi lich su
+                  </button>
                 ) : null}
 
                 {resultSrc || sampleSrc || houseSrc ? (
