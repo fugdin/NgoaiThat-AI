@@ -1,6 +1,7 @@
 export const createInitialData = () => ({
   sampleImage: null,
   houseImage: null,
+  outputImage: null,
   requirements: {
     style: "Hiện đại",
     colorPalette: "",

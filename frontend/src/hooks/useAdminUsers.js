@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchAdminUsers } from "../api/admin";
+import {
+  createAdminUser,
+  deleteAdminUser,
+  fetchAdminUsers,
+  updateAdminUser,
+} from "../api/admin";
 
 const DEFAULT_QUERY = {
   page: 1,
@@ -31,6 +36,7 @@ function useAdminUsers(token) {
   const [error, setError] = useState("");
   const [query, setQuery] = useState(DEFAULT_QUERY);
   const queryRef = useRef(DEFAULT_QUERY);
+  const unwrap = useCallback((response) => response?.data ?? response ?? {}, []);
 
   const loadUsers = useCallback(
     async (override = {}) => {
@@ -49,7 +55,7 @@ function useAdminUsers(token) {
       setLoading(true);
       try {
         const response = await fetchAdminUsers(apiQuery, token);
-        const payload = response?.data || {};
+        const payload = unwrap(response);
         setUsers(normalizeUsers(payload.items || []));
         setMeta({
           total: payload.total || 0,
@@ -60,19 +66,75 @@ function useAdminUsers(token) {
         setError("");
         return payload;
       } catch (err) {
-        setError(err?.message || "Không thể tải danh sách người dùng");
+        setError(err?.message || "Kh?ng th? t?i danh s?ch ng??i d?ng");
         setUsers([]);
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [token]
+    [token, unwrap]
   );
 
   useEffect(() => {
     loadUsers(DEFAULT_QUERY);
   }, [loadUsers]);
+
+  const createUser = useCallback(
+    async (payload) => {
+      setLoading(true);
+      try {
+        const res = await createAdminUser(payload, token);
+        await loadUsers(queryRef.current);
+        return { ok: true, data: unwrap(res) };
+      } catch (err) {
+        setError(err?.message || "Kh?ng th? t?o t?i kho?n");
+        return { ok: false, message: err?.message };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadUsers, token, unwrap]
+  );
+
+  const updateUser = useCallback(
+    async (id, payload) => {
+      setLoading(true);
+      try {
+        const res = await updateAdminUser(id, payload, token);
+        await loadUsers(queryRef.current);
+        return { ok: true, data: unwrap(res) };
+      } catch (err) {
+        setError(err?.message || "Kh?ng th? c?p nh?t t?i kho?n");
+        return { ok: false, message: err?.message };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadUsers, token, unwrap]
+  );
+
+  const removeUser = useCallback(
+    async (id) => {
+      setLoading(true);
+      try {
+        const res = await deleteAdminUser(id, token);
+        await loadUsers(queryRef.current);
+        return { ok: true, data: unwrap(res) };
+      } catch (err) {
+        setError(err?.message || "Kh?ng th? x?a t?i kho?n");
+        return { ok: false, message: err?.message };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadUsers, token, unwrap]
+  );
+
+  const updateRole = useCallback(
+    (id, role) => updateUser(id, { role }),
+    [updateUser]
+  );
 
   return {
     users,
@@ -81,6 +143,10 @@ function useAdminUsers(token) {
     query,
     meta,
     refresh: loadUsers,
+    createUser,
+    updateUser,
+    removeUser,
+    updateRole,
   };
 }
 

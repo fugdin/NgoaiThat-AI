@@ -3,13 +3,13 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 async function parseJsonSafely(response) {
   try {
     return await response.json();
-  } catch (_error) {
+  } catch {
     return null;
   }
 }
 
 function buildError(message, fallbackStatus) {
-  const error = new Error(message || "Yeu cau that bai");
+  const error = new Error(message || "Yêu cầu thất bại");
   if (fallbackStatus) {
     error.status = fallbackStatus;
   }

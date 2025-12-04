@@ -19,7 +19,7 @@ export async function generateStyle(tempId, requirementsArray) {
   return res.json();
 }
 
-export async function generateFinal(tempId, file, requirementsObj) {
+export async function generateFinal(tempId, file, requirementsObj, token) {
   const form = new FormData();
   form.append("tempId", tempId);
   form.append("house", file);
@@ -31,13 +31,21 @@ export async function generateFinal(tempId, file, requirementsObj) {
     form.append("requirements", JSON.stringify(requirements));
   }
 
+  // ✅ Nhận token từ tham số và gắn vào headers
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_URL}/api/generate-final`, {
     method: "POST",
-    body: form,
+    headers,   // ✅ truyền headers vào fetch
+    body: form, // KHÔNG set Content-Type, để FormData tự lo
   });
 
   return res.json();
 }
+
 
 export async function getHistories(userId = "") {
   const res = await fetch(`${API_URL}/api/histories?userId=${encodeURIComponent(userId)}`);

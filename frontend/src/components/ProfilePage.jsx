@@ -1,6 +1,6 @@
 ﻿import { useMemo, useState } from "react";
 
-function ProfilePage({ user, historyEntries = [], draft }) {
+function ProfilePage({ user, historyEntries = [], draft, onDeleteHistory }) {
   const {
     requirements = { style: "", colorPalette: "", decorItems: "", aiSuggestions: "" },
     sampleImage = null,
@@ -133,6 +133,21 @@ function ProfilePage({ user, historyEntries = [], draft }) {
                     <p style={{ fontSize: "0.8rem", opacity: 0.65 }}>
                       <strong>Ghi chú người dùng:</strong> {entry.notes}
                     </p>
+                  ) : null}
+
+                  {typeof onDeleteHistory === "function" ? (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteHistory(entry.id)}
+                      className="btn btn-secondary"
+                      style={{
+                        marginTop: "8px",
+                        alignSelf: "flex-start",
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      Xóa yêu cầu này
+                    </button>
                   ) : null}
 
                   <button

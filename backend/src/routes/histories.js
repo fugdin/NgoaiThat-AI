@@ -2,19 +2,21 @@ const express = require('express');
 const router = express.Router();
 const { getPool, sql } = require('../db');
 const asyncHandler = require('../middlewares/asyncHandler');
+const auth = require('../middlewares/auth');
+
 
 /**
  * GET /api/histories
  * Query: ?page=1&pageSize=12&userId=1
  */
-router.get('/histories', asyncHandler(async (req, res) => {
+router.get('/histories', auth, asyncHandler(async (req, res) => {
   let { page = 1, pageSize = 12, userId } = req.query;
   page = Math.max(parseInt(page, 10) || 1, 1);
   pageSize = Math.min(Math.max(parseInt(pageSize, 10) || 12, 1), 50);
 
   const pool = await getPool();
   const reqDb = pool.request();
-  const userIdSafe = Number(userId) || 1;
+  const userIdSafe = req.user.id;  
   reqDb.input('UserId', sql.BigInt, userIdSafe);
 
   const offset = (page - 1) * pageSize;

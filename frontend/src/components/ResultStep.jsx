@@ -1,27 +1,55 @@
 import { useEffect, useMemo, useState } from "react";
 import WizardNavigation from "./WizardNavigation.jsx";
 
-function ResultStep({ data, history, onSaveHistory, onBack, onRestart, apiMessage = "" }) {
+function ResultStep({
+  data,
+  history,
+  onSaveHistory,
+  onBack,
+  onRestart,
+  apiMessage = "",
+  onDeleteHistory,
+}) {
   const [notes, setNotes] = useState("");
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     setNotes("");
     setIsSaved(false);
-  }, [data?.result?.data.outputImage, data?.houseImage?.preview]);
+  }, [data?.result?.data.outputImages, data?.houseImage?.preview]);
 
   const formattedHistory = useMemo(
-    () =>
-      history.map((entry) => ({
+  () =>
+    history.map((entry) => {
+      const resultImageSrc =
+        // nếu bạn có lưu nguyên result vào history
+        entry.outputImageUrl ||
+        // hoặc (thường gặp) chỉ lưu URL
+        entry.outputImageUrl ||
+        "";
+
+      const sampleImageSrc =
+        entry.sampleImageUrl || entry.sampleImageDataUrl || "";
+
+      const houseImageSrc =
+        entry.houseImageUrl || entry.houseImageDataUrl || "";
+
+      const resultIsOriginal =
+        entry.resultIsOriginal || (!resultImageSrc && !!houseImageSrc);
+
+      return {
         ...entry,
         formattedDate: new Date(entry.createdAt).toLocaleString("vi-VN"),
-        resultImageSrc:
-          entry.outputImageUrl || entry.houseImageUrl || entry.houseImageDataUrl || "",
-        sampleImageSrc: entry.sampleImageUrl || entry.sampleImageDataUrl || "",
-        houseImageSrc: entry.houseImageUrl || entry.houseImageDataUrl || "",
-      })),
-    [history]
-  );
+        resultImageSrc,
+        sampleImageSrc,
+        houseImageSrc,
+        resultIsOriginal,
+      };
+    }),
+  [history]
+);
+
+
 
   const handleSave = () => {
     if (isSaved) return;
@@ -215,13 +243,23 @@ console.log("Rendered ResultStep with data:", data);
                   <p>
                     <strong>Ghi chu AI:</strong> {entry.aiSuggestions || "Khong co"}
                   </p>
+                  {typeof onDeleteHistory === "function" ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ marginTop: "8px", fontSize: "0.78rem" }}
+                      onClick={() => onDeleteHistory(entry.id)}
+                    >
+                      Xoa khoi lich su
+                    </button>
+                  ) : null}
                   {entry.notes ? (
                     <p style={{ fontSize: "0.8rem", opacity: 0.7 }}>
                       <strong>Ghi chu nguoi dung:</strong> {entry.notes}
                     </p>
                   ) : null}
 
-                  {entry.resultImageSrc || entry.sampleImageSrc || entry.houseImageSrc ? (
+                  {entry.outputImageUrl || entry.sampleImageSrc || entry.houseImageSrc ? (
                     <div
                       style={{
                         display: "grid",
@@ -229,10 +267,10 @@ console.log("Rendered ResultStep with data:", data);
                         marginTop: "12px",
                       }}
                     >
-                      {entry.resultImageSrc ? (
+                      {entry.outputImageUrl ? (
                         <figure style={{ margin: 0 }}>
                           <img
-                            src={entry.resultImageSrc}
+                            src={entry.outputImageUrl}
                             alt="Anh ket qua da luu"
                             style={{ width: "100%", borderRadius: "12px" }}
                           />
