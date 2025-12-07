@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const DEFAULT_MODEL = "gemini-1.5-pro-latest";
+const DEFAULT_MODEL = "gemini-2.5-flash-lite";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {

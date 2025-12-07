@@ -10,6 +10,7 @@ const {
   generateImageFromImages, // Image-to-image
 } = require("../services/external-ai");
 const { getPool, sql } = require("../db");
+const auth = require("../middlewares/auth");
 
 // Khởi tạo Express Router
 const router = express.Router();
@@ -124,9 +125,16 @@ router.post("/generate-style", async (req, res) => {
 /**
  * 3️⃣ Upload ảnh nhà thật → Gọi External AI Services để phối cảnh
  */
-router.post("/generate-final", upload.single("house"), async (req, res) => {
-  const trxUserId = 1;
+router.post("/generate-final", auth, upload.single("house"), async (req, res) => {
   try {
+    // Lấy UserId từ token thông qua middleware auth
+    const trxUserId = req.user?.id || req.user?.userId;
+    if (!trxUserId) {
+      return res.status(401).json({ 
+        ok: false, 
+        message: "Không thể xác định người dùng. Vui lòng đăng nhập lại." 
+      });
+    }
     const { tempId } = req.body;
     const file = req.file;
 
@@ -276,12 +284,21 @@ Hãy sử dụng ảnh nhà thô làm nền bắt buộc, bám sát cấu trúc 
                           imageResults.replicate || 
                           imageResults.huggingface;
 
+    // Kiểm tra xem có ít nhất một ảnh được tạo ra không
+    if (!outputImageUrl) {
+      return res.status(500).json({
+        ok: false,
+        message: "Không thể tạo ảnh. Vui lòng thử lại sau.",
+        detail: "Tất cả các dịch vụ AI đều không trả về kết quả.",
+      });
+    }
+
     // Lưu lịch sử vào DB (lưu ảnh đầu tiên có sẵn)
     const pool = await getPool();
     await pool.request()
       .input("UserId", sql.BigInt, trxUserId)
       .input("InputImageUrl", sql.NVarChar(500), upHouse.secure_url)
-      .input("OutputImageUrl", sql.NVarChar(500), outputImageUrl || "")
+      .input("OutputImageUrl", sql.NVarChar(500), outputImageUrl)
       .input("Style", sql.NVarChar(200), ctx.requirements?.style || "")
       .input("PromptUsed", sql.NVarChar(sql.MAX), prompt)
       .query(`

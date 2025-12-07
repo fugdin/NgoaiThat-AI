@@ -14,7 +14,7 @@ const DEFAULT_IMAGE_ANALYSIS_MODELS = [
   // Các model khác vẫn có thể miễn phí tùy quota, xếp sau
   'gemini-2.0-flash-lite',
   'gemini-2.0-flash',
-  'gemini-1.5-pro',
+  'gemini-2.5-flash-lite',
 ];
 
 function buildModelList() {
@@ -135,7 +135,16 @@ function isModelUnavailableError(error) {
  * @returns {Promise<string>} - Kết quả phân tích dạng text
  */
 async function analyzeImageWithGemini(imageBuffer, mimeType, prompt) {
-  const client = getGoogleGenAiClient();
+  // Sử dụng GoogleGenerativeAI trực tiếp thay vì client từ getGoogleGenAiClient
+  const { GoogleGenerativeAI } = require('@google/generative-ai');
+  const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY1;
+  
+  if (!apiKey) {
+    throw new Error('GOOGLE_API_KEY hoặc GOOGLE_API_KEY1 chưa được cấu hình trong .env');
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  
   const fallbackList = process.env.GEMINI_IMAGE_ANALYSIS_MODELS_FALLBACK
     ? process.env.GEMINI_IMAGE_ANALYSIS_MODELS_FALLBACK.split(',').map((m) => m.trim()).filter(Boolean)
     : [];
@@ -144,56 +153,63 @@ async function analyzeImageWithGemini(imageBuffer, mimeType, prompt) {
     ? GOOGLE_IMAGE_ANALYSIS_MODELS
     : ['gemini-1.5-flash']).concat(fallbackList);
 
-  const contents = [
-    {
-      role: 'user',
-      parts: [
-        ...(prompt ? [{ text: prompt }] : []),
-        {
-          inlineData: {
-            mimeType: mimeType || 'image/jpeg',
-            data: imageBuffer.toString('base64'),
-          },
-        },
-      ],
-    },
-  ];
-
   const temperature = Number(process.env.GOOGLE_IMAGE_ANALYSIS_TEMPERATURE);
   const maxTokens = Number(process.env.GOOGLE_IMAGE_ANALYSIS_MAX_TOKENS);
-  const config = {};
+  const generationConfig = {};
 
   if (Number.isFinite(temperature)) {
-    config.temperature = temperature;
+    generationConfig.temperature = temperature;
   } else {
-    config.temperature = 0.2;
+    generationConfig.temperature = 0.2;
   }
 
   if (Number.isFinite(maxTokens) && maxTokens > 0) {
-    config.maxOutputTokens = maxTokens;
+    generationConfig.maxOutputTokens = maxTokens;
   }
 
   let lastError = null;
 
   for (const modelName of modelsToTry) {
     try {
-      const response = await client.models.generateContent({
+      const model = genAI.getGenerativeModel({ 
         model: modelName,
-        contents,
-        config,
+        generationConfig,
       });
 
-      const analysisText = extractGeminiText(response);
-      if (!analysisText) {
+      // Tạo content với text prompt và image
+      const parts = [];
+      if (prompt) {
+        parts.push({ text: prompt });
+      }
+      parts.push({
+        inlineData: {
+          mimeType: mimeType || 'image/jpeg',
+          data: imageBuffer.toString('base64'),
+        },
+      });
+
+      const result = await model.generateContent(parts);
+      const response = await result.response;
+      
+      // Extract text từ response
+      const analysisText = response.text();
+      
+      if (!analysisText || !analysisText.trim()) {
         throw new Error('Google AI Studio không trả về nội dung phân tích.');
       }
 
-      return analysisText;
+      return analysisText.trim();
     } catch (error) {
       lastError = error;
       console.error(`[Gemini Image Analysis Error][${modelName}]`, error?.message || error);
 
-      if (!isRetryableGoogleError(error) && !isModelUnavailableError(error)) {
+      // Nếu model không available (404), thử model tiếp theo
+      if (isModelUnavailableError(error)) {
+        continue;
+      }
+
+      // Nếu lỗi không retryable, dừng lại
+      if (!isRetryableGoogleError(error)) {
         break;
       }
     }
@@ -562,6 +578,12 @@ async function generateImageFromThreeServices(prompt, options = {}) {
     huggingface: null,
   };
 
+  // Log trạng thái API keys (chỉ log có/không có, không log giá trị)
+  console.log('[External AI] Kiểm tra API keys:');
+  console.log(`  - STABILITY_AI_API_KEY: ${process.env.STABILITY_AI_API_KEY ? '✓ Có' : '✗ Thiếu'}`);
+  console.log(`  - REPLICATE_API_TOKEN: ${process.env.REPLICATE_API_TOKEN ? '✓ Có' : '✗ Thiếu'}`);
+  console.log(`  - HUGGINGFACE_API_KEY: ${process.env.HUGGINGFACE_API_KEY ? '✓ Có' : '✗ Thiếu'}`);
+
   // Chạy song song cả 3 services
   const promises = [
     generateImageWithStabilityAI(prompt, options)
@@ -598,7 +620,30 @@ async function generateImageFromThreeServices(prompt, options = {}) {
   // Kiểm tra xem có ít nhất 1 kết quả không
   const hasAnyResult = results.stability || results.replicate || results.huggingface;
   if (!hasAnyResult) {
-    throw new Error('Tất cả 3 services (Stability AI, Replicate, Hugging Face) đều không available. Vui lòng cấu hình API keys trong .env.');
+    // Kiểm tra các API keys có tồn tại không
+    const missingKeys = [];
+    if (!process.env.STABILITY_AI_API_KEY) {
+      missingKeys.push('STABILITY_AI_API_KEY');
+    }
+    if (!process.env.REPLICATE_API_TOKEN) {
+      missingKeys.push('REPLICATE_API_TOKEN');
+    }
+    if (!process.env.HUGGINGFACE_API_KEY) {
+      missingKeys.push('HUGGINGFACE_API_KEY');
+    }
+
+    let errorMessage = 'Tất cả 3 services (Stability AI, Replicate, Hugging Face) đều không available.';
+    if (missingKeys.length > 0) {
+      errorMessage += `\n\nCác API keys thiếu trong .env:\n- ${missingKeys.join('\n- ')}`;
+    } else {
+      errorMessage += '\n\nTất cả API keys đã được cấu hình nhưng các services vẫn không hoạt động. Vui lòng kiểm tra:\n';
+      errorMessage += '1. API keys có đúng không?\n';
+      errorMessage += '2. API keys có còn hạn không?\n';
+      errorMessage += '3. Có lỗi kết nối mạng không?\n';
+      errorMessage += '4. Server đã được restart sau khi thêm API keys vào .env chưa?';
+    }
+    
+    throw new Error(errorMessage);
   }
 
   return results;
