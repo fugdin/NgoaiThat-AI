@@ -9,7 +9,8 @@ const wizardRoutes = require("./routes/wizard");
 const historiesRoutes = require("./routes/histories");
 const usersRoutes = require("./routes/users");
 const adminRoutes = require("./routes/admin");
-
+const designRoutes = require("./routes/designs");
+const colorRoutes = require("./routes/colors");
 
 // 🧩 middlewares
 const respond = require("./middlewares/respond");
@@ -61,6 +62,8 @@ app.use(
 
 app.use("/api/histories", historiesRoutes);
 app.use("/api/users", usersRoutes);
+app.use("/api/visualizer", designRoutes);
+app.use("/api/colors", colorRoutes);
 
 // ✅ Route yêu cầu đăng nhập (JWT)
 app.use("/api/secure", auth, wizardRoutes);

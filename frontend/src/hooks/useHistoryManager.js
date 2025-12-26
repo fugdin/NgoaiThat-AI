@@ -72,7 +72,7 @@ function useHistoryManager(user) {
         resultIsOriginal:
           !wizardSnapshot.result?.data?.outputImage && Boolean(houseSource),
       };
-      debugger;
+      //debugger;
       setHistory((prev) => [...prev, entry]);
     },
     [user?.email, user?.name]

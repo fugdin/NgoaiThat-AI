@@ -1,0 +1,26 @@
+{
+  "name": "tests-e2e",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha \"tests/**/*.test.js\" --timeout 60000",
+    "test:auth": "mocha \"tests/auth.test.js\" --timeout 60000",
+    "test:upload": "mocha \"tests/upload-house.test.js\" --timeout 60000",
+    "test:wizard": "mocha \"tests/wizard-*.test.js\" --timeout 60000",
+    "test:history": "mocha \"tests/history.test.js\" --timeout 60000",
+    "test:profile": "mocha \"tests/profile.test.js\" --timeout 60000",
+    "test:admin": "mocha \"tests/admin.test.js\" --timeout 60000",
+    "test:security": "mocha \"tests/security.test.js\" --timeout 60000",
+    "test:all": "mocha \"tests/**/*.test.js\" --timeout 120000 --reporter spec"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "E2E tests for NgoaiThat-AI application based on test cases CSV",
+  "devDependencies": {
+    "chai": "^6.2.1",
+    "chromedriver": "^143.0.0",
+    "mocha": "^11.7.5",
+    "selenium-webdriver": "^4.39.0"
+  }
+}
