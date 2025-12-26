@@ -8,8 +8,8 @@ function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
         <div style={{ fontSize: "40px" }}>???</div>
         <h2 className="wizard-card__title">{title}</h2>
         <p className="wizard-card__subtitle">
-          Xem lai nhung phuong an da tao de so sanh, tiep tuc chinh sua hoac trao
-          doi voi khach hang.
+          Xem lại những phương án đã tạo để so sánh, tiếp tục chỉnh sửa hoặc trao
+          đổi với khách hàng.
         </p>
       </div>
 
@@ -27,25 +27,25 @@ function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
                   #{entry.id.slice(0, 8).toUpperCase()}
                 </div>
                 <p style={{ fontSize: "0.82rem", opacity: 0.75 }}>
-                  Tao luc: {formattedDate}
+                  Tạo lúc: {formattedDate}
                 </p>
                 <h3 style={{ margin: 0 }}>{entry.style}</h3>
                 <p style={{ fontSize: "0.85rem", opacity: 0.75 }}>
-                  <strong>Bang mau:</strong> {entry.colorPalette || "Chua ghi chu"}
+                  <strong>Bảng màu:</strong> {entry.colorPalette || "Chưa ghi chú"}
                 </p>
                 <p style={{ fontSize: "0.85rem", opacity: 0.75 }}>
-                  <strong>Diem nhan:</strong> {entry.decorItems || "Chua ghi chu"}
+                  <strong>Điểm nhấn:</strong> {entry.decorItems || "Chưa ghi chú"}
                 </p>
                 <p style={{ fontSize: "0.85rem", opacity: 0.75 }}>
-                  <strong>Ghi chu AI:</strong> {entry.aiSuggestions || "Khong co"}
+                  <strong>Ghi chú AI:</strong> {entry.aiSuggestions || "Không có"}
                 </p>
                 <p style={{ fontSize: "0.85rem", opacity: 0.75 }}>
-                  <strong>Trang thai:</strong>{" "}
-                  {entry.status?.replace("_", " ") || "Dang cho"}
+                  <strong>Trạng thái:</strong>{" "}
+                  {entry.status?.replace("_", " ") || "Đang chờ"}
                 </p>
                 {entry.notes ? (
                   <p style={{ fontSize: "0.8rem", opacity: 0.65 }}>
-                    <strong>Ghi chu nguoi dung:</strong> {entry.notes}
+                    <strong>Ghi chú người dùng:</strong> {entry.notes}
                   </p>
                 ) : null}
 
@@ -56,7 +56,7 @@ function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
                     style={{ marginTop: "8px", fontSize: "0.78rem" }}
                     onClick={() => onDeleteHistory(entry.id)}
                   >
-                    Xoa khoi lich su
+                    Xóa khỏi lịch sử
                   </button>
                 ) : null}
 
@@ -72,7 +72,7 @@ function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
                       <figure style={{ margin: 0 }}>
                         <img
                           src={resultSrc}
-                          alt="Anh ket qua"
+                          alt="Ảnh kết quả"
                           style={{ width: "100%", borderRadius: "12px" }}
                         />
                         {entry.resultIsOriginal ? (
@@ -83,7 +83,7 @@ function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
                               marginTop: "6px",
                             }}
                           >
-                            Dang hien thi anh goc chua qua xu ly.
+                            Đang hiển thị ảnh gốc chưa qua xử lý.
                           </figcaption>
                         ) : null}
                       </figure>
@@ -100,7 +100,7 @@ function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
                         <figure style={{ margin: 0 }}>
                           <img
                             src={sampleSrc}
-                            alt="Anh tham chieu"
+                            alt="Ảnh tham chiếu"
                             style={{ width: "100%", borderRadius: "10px" }}
                           />
                           <figcaption
@@ -110,7 +110,7 @@ function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
                               marginTop: "4px",
                             }}
                           >
-                            Anh tham chieu
+                            Ảnh tham chiếu
                           </figcaption>
                         </figure>
                       ) : null}
@@ -118,7 +118,7 @@ function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
                         <figure style={{ margin: 0 }}>
                           <img
                             src={houseSrc}
-                            alt="Anh hien trang"
+                            alt="Ảnh hiện trạng"
                             style={{ width: "100%", borderRadius: "10px" }}
                           />
                           <figcaption
@@ -128,7 +128,7 @@ function HistoryViewer({ entries, title, emptyMessage, onDeleteHistory }) {
                               marginTop: "4px",
                             }}
                           >
-                            Anh hien trang
+                            Ảnh hiện trạng
                           </figcaption>
                         </figure>
                       ) : null}

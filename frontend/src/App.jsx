@@ -140,13 +140,13 @@ function normaliseEmail(value = "") {
 }
 
 function deriveNameFromEmail(email = "") {
-  if (!email) return "Nguoi dung";
+  if (!email) return "Người dùng";
   const localPart = email.includes("@") ? email.split("@")[0] : email;
   const cleaned = localPart
     .replace(/[_-]+/g, " ")
     .replace(/\.+/g, " ")
     .trim();
-  if (!cleaned) return "Nguoi dung";
+  if (!cleaned) return "Người dùng";
   return cleaned
     .split(/\s+/)
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
@@ -285,10 +285,10 @@ useEffect(() => {
   }, [user?.role]);
 
   const roleLabel =
-    user?.role === "admin" ? "Quan tri vien" : "Nguoi dung";
+    user?.role === "admin" ? "Quản trị viên" : "Người dùng";
   const displayName =
     (user?.name && user.name.trim()) ||
-    (user?.email ? deriveNameFromEmail(user.email) : "Nguoi dung");
+    (user?.email ? deriveNameFromEmail(user.email) : "Người dùng");
 
   const displayInitials = useMemo(() => {
     const source = displayName.trim();
@@ -332,13 +332,13 @@ useEffect(() => {
       resetWizard();
       pushToast({
         variant: "success",
-        title: "Dang nhap thanh cong",
-        message: "Chao mung ban tro lai.",
+        title: "Đăng nhập thành công",
+        message: "Chào mừng bạn trở lại.",
       });
       return { ok: true };
     } catch (error) {
       const message =
-        (error && error.message) || "Dang nhap that bai. Vui long thu lai.";
+        (error && error.message) || "Đăng nhập thất bại. Vui lòng thử lại.";
       return { ok: false, message };
     }
   };
@@ -354,19 +354,19 @@ useEffect(() => {
       setAuthMode("login");
       setAuthNotice(
         (response && response.message) ||
-          "Dang ky thanh cong. Vui long dang nhap."
+          "Đăng ký thành công. Vui lòng đăng nhập."
       );
       setAuthPrefillEmail(normalizedEmail);
       pushToast({
         variant: "success",
-        title: "Dang ky thanh cong",
-        message: "Ban co the dang nhap bang email vua dang ky.",
+        title: "Đăng ký thành công",
+        message: "Bạn có thể đăng nhập bằng email vừa đăng ký.",
       });
       return { ok: true };
     } catch (error) {
       const message =
         (error && error.message) ||
-        "Dang ky that bai, vui long thu lai.";
+        "Đăng ký thất bại, vui lòng thử lại.";
       return { ok: false, message };
     }
   };

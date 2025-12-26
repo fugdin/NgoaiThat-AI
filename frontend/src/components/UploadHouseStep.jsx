@@ -58,25 +58,51 @@ function UploadHouseStep({
               onDragOver={preventDefaults}
               onDrop={handleDrop}
             >
-              <div style={{ fontSize: "36px", marginBottom: "12px" }}>🏠</div>
-              <h3>Kéo thả ảnh hiện trạng tại đây</h3>
-              <p>hoặc nhấn để chọn ảnh từ thiết bị</p>
-              <button
-                type="button"
-                className={`btn btn-primary${loading ? " btn--loading" : ""}`}
-                style={{ marginTop: "22px" }}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="btn__spinner" aria-hidden="true" />
-                    <span>Đang gửi...</span>
-                  </>
-                ) : (
-                  "Chọn ảnh hiện trạng"
-                )}
-              </button>
+              {houseImage?.preview ? (
+                <>
+                  <div className="preview-frame" style={{ marginBottom: "16px" }}>
+                    <div className="preview-image">
+                      <img src={houseImage.preview} alt="Ảnh hiện trạng" />
+                    </div>
+                  </div>
+                  <p style={{ marginBottom: "12px", fontSize: "0.85rem", color: "rgba(144,255,195,0.85)" }}>
+                    Ảnh đã chọn: <strong>{houseImage.file?.name ?? houseImage?.name ?? "Ảnh hiện trạng"}</strong>
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading}
+                  >
+                    Thay đổi ảnh
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: "36px", marginBottom: "12px" }}>🏠</div>
+                  <h3>Kéo thả ảnh hiện trạng tại đây</h3>
+                  <p>hoặc nhấn để chọn ảnh từ thiết bị</p>
+                  <button
+                    type="button"
+                    className={`btn btn-primary${loading ? " btn--loading" : ""}`}
+                    style={{ marginTop: "22px" }}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="btn__spinner" aria-hidden="true" />
+                        <span>Đang gửi...</span>
+                      </>
+                    ) : (
+                      "Chọn ảnh hiện trạng"
+                    )}
+                  </button>
+                  <p style={{ marginTop: "12px", fontSize: "0.85rem", color: "rgba(226,233,255,0.7)" }}>
+                    Mẹo: Chụp chính diện, đủ sáng, tránh vật cản để có kết quả tốt nhất.
+                  </p>
+                </>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -84,24 +110,7 @@ function UploadHouseStep({
                 onChange={handleFileChange}
                 style={{ display: "none" }}
               />
-              {houseImage ? (
-                <p style={{ marginTop: "12px", fontSize: "0.85rem", color: "rgba(144,255,195,0.85)" }}>
-                  Ảnh đã chọn: <strong>{houseImage.file?.name ?? houseImage?.name ?? "Ảnh hiện trạng"}</strong>
-                </p>
-              ) : (
-                <p style={{ marginTop: "12px", fontSize: "0.85rem", color: "rgba(226,233,255,0.7)" }}>
-                  Mẹo: Chụp chính diện, đủ sáng, tránh vật cản để có kết quả tốt nhất.
-                </p>
-              )}
             </div>
-
-            {houseImage?.preview ? (
-              <div className="preview-frame">
-                <div className="preview-image">
-                  <img src={houseImage.preview} alt="Ảnh hiện trạng" />
-                </div>
-              </div>
-            ) : null}
           </div>
 
           <div className="timeline-card">

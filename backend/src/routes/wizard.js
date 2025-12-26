@@ -10,6 +10,7 @@ const {
   generateImageFromImages, // Image-to-image
 } = require("../services/external-ai");
 const { getPool, sql } = require("../db");
+const auth = require("../middlewares/auth");
 
 // Khởi tạo Express Router
 const router = express.Router();
@@ -28,44 +29,22 @@ router.post("/upload-sample", upload.single("sample"), async (req, res) => {
     const up = await uploadBufferToCloudinary(req.file.buffer, "exterior_ai/samples");
 
     const prompt = `
-SYSTEM INSTRUCTIONS
+Bạn là chuyên gia kiến trúc và kỹ sư prompt. Hãy phân tích ảnh mẫu này và trả về JSON.
+Nhiệm vụ:
+- Phân tích chi tiết: Tường, Mái, Cột, Cửa, Vật liệu, Màu sắc.
+- Tạo "Visual Style Prompt" (Tiếng Anh): Viết một đoạn mô tả khoảng 60-80 từ tập trung vào vật liệu, màu sắc, ánh sáng và phong cách của ngôi nhà này. Đoạn này sẽ được dùng để áp lên một ngôi nhà khác mà không làm thay đổi cấu trúc nhà đó.
 
-You are an AI architecture and exterior design analyst.
-
-Your main role is to analyze house or building images and extract the structural components with precise visual references.
-
-When given an image, you must:
-1. Identify and describe **each architectural component** clearly:
-   - Walls (location, color, material, style)
-   - Columns (position, design, height, decorative details)
-   - Roof (type, slope, material, color)
-   - Windows (shape, frame type, glass tone, distribution)
-   - Doors (location, material, color, design style)
-   - Balcony or terrace (position, railing material, decoration)
-   - Decorative elements (arches, moldings, trims, cornices, lighting)
-   - Foundation / base / stairs (type, height, visibility)
-   - Any **unique materials** (stone, glass, metal, wood, paint texture)
-
-2. For each element, describe **where** it is located in the image
-   (e.g., "The wall is located on the left half of the house, painted white, with vertical grooves.")
-
-3. Mention **relationships** between parts when relevant
-   (e.g., "The columns support the balcony roof; the window frame aligns with the top cornice.")
-
-4. Use **clear sectioned format**:
-   - "1. Walls — …"
-   - "2. Roof — …"
-   - etc.
-
-5. Output should always be **in Vietnamese**, clear and professional, like a design report for an architecture student or engineer.
-
-If possible, provide both:
-- **Descriptive version (text explanation)**
-- **Summarized version (bullet points)**
-
-You must NOT invent or hallucinate unseen details — describe only what is visually evident from the image.
-
-Please analyze the provided exterior image according to these instructions.
+Trả về duy nhất JSON theo cấu trúc:
+{
+  "architectural_components": [
+    { "element": "Tường/Mái/Cột...", "material": "", "color": "", "description_vi": "" }
+  ],
+  "visual_style_transfer": {
+    "style_name": "ví dụ: Modern, Neoclassical",
+    "master_prompt_en": "A high-quality architectural render, [Mô tả chi tiết vật liệu, màu sắc bằng tiếng Anh ở đây], cinematic lighting, 8k resolution",
+    "color_palette": ["mã màu hoặc tên màu"]
+  },
+  "summary_vi": "Tóm tắt ngắn gọn phong cách ngôi nhà."}
 `;
 
 
@@ -124,9 +103,16 @@ router.post("/generate-style", async (req, res) => {
 /**
  * 3️⃣ Upload ảnh nhà thật → Gọi External AI Services để phối cảnh
  */
-router.post("/generate-final", upload.single("house"), async (req, res) => {
-  const trxUserId = 1;
+router.post("/generate-final", auth, upload.single("house"), async (req, res) => {
   try {
+    // Lấy UserId từ token thông qua middleware auth
+    const trxUserId = req.user?.id || req.user?.userId;
+    if (!trxUserId) {
+      return res.status(401).json({ 
+        ok: false, 
+        message: "Không thể xác định người dùng. Vui lòng đăng nhập lại." 
+      });
+    }
     const { tempId } = req.body;
     const file = req.file;
 
@@ -214,7 +200,7 @@ Hãy sử dụng ảnh nhà thô làm nền bắt buộc, bám sát cấu trúc 
         single: upOutput.secure_url,
       };
     } else {
-      // Chỉ có ảnh nhà thô, tạo 3 ảnh từ 3 services
+      // Chỉ có ảnh nhà thô, tạo ảnh từ nhiều services (Gemini ưu tiên vào single)
       const results = await generateImageFromThreeServices(prompt, {
         width: 1024,
         height: 1024,
@@ -222,6 +208,21 @@ Hãy sử dụng ảnh nhà thô làm nền bắt buộc, bám sát cấu trúc 
 
       // Upload từng ảnh lên Cloudinary
       const uploadPromises = [];
+      
+      // Gemini (ưu tiên vào single)
+      if (results.single) {
+        uploadPromises.push(
+          uploadBufferToCloudinary(results.single, "exterior_ai/outputs")
+            .then(up => ({ service: 'single', url: up.secure_url }))
+            .catch(err => {
+              console.error('[Upload] Gemini image error:', err);
+              return { service: 'single', url: null };
+            })
+        );
+      } else {
+        uploadPromises.push(Promise.resolve({ service: 'single', url: null }));
+      }
+
       if (results.stability) {
         uploadPromises.push(
           uploadBufferToCloudinary(results.stability, "exterior_ai/outputs")
@@ -263,10 +264,10 @@ Hãy sử dụng ảnh nhà thô làm nền bắt buộc, bám sát cấu trúc 
 
       const uploadedResults = await Promise.all(uploadPromises);
       imageResults = {
+        single: uploadedResults.find(r => r.service === 'single')?.url || null,
         stability: uploadedResults.find(r => r.service === 'stability')?.url || null,
         replicate: uploadedResults.find(r => r.service === 'replicate')?.url || null,
         huggingface: uploadedResults.find(r => r.service === 'huggingface')?.url || null,
-        single: null,
       };
     }
 
@@ -276,12 +277,21 @@ Hãy sử dụng ảnh nhà thô làm nền bắt buộc, bám sát cấu trúc 
                           imageResults.replicate || 
                           imageResults.huggingface;
 
+    // Kiểm tra xem có ít nhất một ảnh được tạo ra không
+    if (!outputImageUrl) {
+      return res.status(500).json({
+        ok: false,
+        message: "Không thể tạo ảnh. Vui lòng thử lại sau.",
+        detail: "Tất cả các dịch vụ AI đều không trả về kết quả.",
+      });
+    }
+
     // Lưu lịch sử vào DB (lưu ảnh đầu tiên có sẵn)
     const pool = await getPool();
     await pool.request()
       .input("UserId", sql.BigInt, trxUserId)
       .input("InputImageUrl", sql.NVarChar(500), upHouse.secure_url)
-      .input("OutputImageUrl", sql.NVarChar(500), outputImageUrl || "")
+      .input("OutputImageUrl", sql.NVarChar(500), outputImageUrl)
       .input("Style", sql.NVarChar(200), ctx.requirements?.style || "")
       .input("PromptUsed", sql.NVarChar(sql.MAX), prompt)
       .query(`

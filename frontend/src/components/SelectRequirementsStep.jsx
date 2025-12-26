@@ -2,6 +2,12 @@
 
 const STYLE_OPTIONS = [
   {
+    value: "Không",
+    description:
+      "Không chọn phong cách cụ thể, để AI tự do sáng tạo dựa trên các yêu cầu khác của bạn.",
+    icon: "➖",
+  },
+  {
     value: "Hiện đại",
     description:
       "Đường nét gọn gàng, nhiều kính, phối màu trung tính nhấn kim loại ánh vàng.",
