@@ -8,6 +8,63 @@
 
 ---
 
+## 🧩 PHÂN RÃ CHỨC NĂNG HỆ THỐNG
+
+Dựa trên yêu cầu và thiết kế mới nhất:
+
+| Nhóm Tính Năng | Chức Năng Cụ Thể | Người Dùng (Khách hàng) | Quản trị Hệ thống (Admin) |
+| :--- | :--- | :--- | :--- |
+| **1. Quản lý Tài khoản & Hồ sơ** | Đăng ký / Đăng nhập | Tạo tài khoản bằng email, đăng nhập hệ thống | Xem danh sách tài khoản, phân quyền (user/admin) |
+| | Quản lý Hồ sơ người dùng | Cập nhật diện tích đất, loại nhà, phong cách yêu thích, ngân sách | Quản trị xem/sửa thông tin hồ sơ để hỗ trợ tư vấn |
+| **2. Tư vấn Ngoại thất theo Ngũ Hành** | Upload ảnh mẫu | Tải ảnh nhà mẫu của khách hàng mà họ muốn phong cách và màu sơn của nhà mẫu đó | Kiểm tra dung lượng ảnh, đảm bảo không spam |
+| | Phân tích & Gợi ý mệnh | Chọn bản mệnh (Kim, Mộc, Thủy, Hỏa, Thổ). Hệ thống tự động trích xuất bộ từ khóa màu sắc tương sinh. | Cấu hình bộ từ khóa (Keywords) màu sắc cho từng mệnh để tối ưu Prompt. |
+| | Upload ảnh mặt tiền | Tải ảnh nhà thô (nhà chưa tô màu hiện tại) của khách hàng | Kiểm tra dung lượng ảnh, đảm bảo không spam |
+| | Sinh ảnh từ AI | Nhận 1 ảnh gợi ý từ API AI (Gemini) | Cấu hình API key, giám sát số lần gọi API |
+| | Lưu ảnh & quản lý URL | Ảnh gợi ý được lưu, có thể tải về | Quản trị xem lịch sử generate, quản lý Cloudinary |
+| **3. Thư viện Kiến trúc Vùng miền** | Khám phá mẫu nhà 3 miền | Xem 10 mẫu nhà đặc trưng (Bắc, Trung, Nam, Âu). Xem mô tả đặc điểm kiến trúc từng vùng. | Cập nhật hình ảnh, mô tả đặc điểm (StyleData) cho 10 mẫu nhà thư viện. |
+| **4. Thiết kế phối hợp (Mix & Match)** | Kết hợp nhà thô & Thư viện | Chọn nhà thô + Chọn nhà mẫu vùng miền + Tùy chỉnh màu bộ phận (Tường, Mái, Cột) -> Sinh ảnh. | Quản lý danh mục mã màu thực tế (HEX) gắn liền với các thương hiệu sơn. |
+| **8. Quản lý & Giám sát hệ thống** | Quản lý người dùng | - | Xem tổng số user, thống kê lượt sinh ảnh |
+| | Quản lý log | - | Giám sát log API, số lần gọi |
+| | Báo cáo thống kê | - | Xem thống kê: các phong cách và màu sắc được người dùng quan tâm nhất. |
+| | Giám sát tài nguyên | - | Theo dõi dung lượng lưu trữ JSON (rất nhẹ) vs Ảnh (nặng) để tối ưu Cloudinary. |
+
+## 🔀 LUỒNG ĐI HỆ THỐNG (FLOWCHART)
+
+### 1. Luồng Tổng Quát
+*   **Vào Web** -> **Đăng nhập**
+    *   Nếu chưa có tài khoản -> **Đăng ký** -> Quay lại Đăng nhập.
+    *   Nếu đăng nhập thành công -> **Kiểm tra Quyền (Role)**.
+
+### 2. Luồng User (Khách hàng)
+*   Sau khi phân quyền là **User**, chuyển đến trang **Khám phá tính năng**.
+*   Các chức năng chính:
+    *   **Cá nhân**: Xem thông tin, **Lịch sử** sinh ảnh -> **Đăng xuất**.
+    *   **Quy trình Tạo ảnh (Wizard Flow)**:
+        1.  **Trang Tạo ảnh** -> **Upload ảnh mẫu**.
+        2.  **Yêu cầu**: Chọn/nhập yêu cầu thiết kế -> Phân tích.
+        3.  **Upload ảnh nhà của bản thân** (Mặt tiền thô).
+        4.  **AI Sinh ảnh**: Hệ thống xử lý và trả về kết quả.
+        5.  **Lưu/Quản lý ảnh**: Kết quả lưu vào lịch sử -> **Kết thúc**.
+    *   **Quy trình Thư viện Mẫu (Mix & Match)**:
+        1.  **Trang Thư viện mẫu** -> **Lựa chọn Ảnh trong thư viện**.
+        2.  **Click vào vùng cần đổi màu** -> **Chọn Màu** (từ bảng màu/hãng sơn).
+        3.  **AI Sinh ảnh**: Kết hợp nhà thô + màu đã chọn.
+        4.  **Lưu/Quản lý ảnh** -> **Kết thúc**.
+
+### 3. Luồng Admin (Quản trị viên)
+*   Sau khi phân quyền là **Admin**, chuyển đến **Admin Dashboard**.
+*   Các chức năng quản trị:
+    *   **Quản lý người dùng**: Xem danh sách, sửa, xóa, phân quyền.
+    *   **Quản lý log/giao dịch**: Xem lịch sử hoạt động hệ thống.
+    *   **Quản lý Thư Viện Mẫu**: Cập nhật ảnh mẫu, StyleData.
+    *   **Báo cáo thống kê**: Xem biểu đồ, metrics.
+    *   **Quản lý Danh mục Màu & Vật liệu**: CRUD mã màu, hãng sơn.
+    *   **Quản lý Prompt của mệnh**: Cấu hình keywords cho ngũ hành.
+*   **Chuyển sang giao diện User**: Admin có thể switch view để test tính năng User.
+*   **Kết thúc**: Đăng xuất.
+
+---
+
 ## 📊 MODEL CHÍNH (DATABASE)
 
 Hệ thống sử dụng **SQL Server** với 3 bảng chính:
@@ -77,6 +134,28 @@ Hệ thống sử dụng **SQL Server** với 3 bảng chính:
 - PolygonData (NVARCHAR(MAX)) - Mảng tọa độ JSON (Vd: [[x1,y1], [x2,y2]...])
 - CreatedAt (DATETIME2, DEFAULT SYSDATETIME())
 ```
+
+### 7. **RegionalLibrary** (Thư viện mẫu nhà vùng miền)
+
+```sql
+- Id (INT, PRIMARY KEY, IDENTITY)
+- RegionName (NVARCHAR(50)) - Tên vùng miền (Bắc, Trung, Nam, Âu)
+- ImageUrl (NVARCHAR(500)) - URL ảnh mẫu nhà (lưu trên Cloudinary)
+- StyleData (NVARCHAR(MAX)) - JSON mô tả đặc điểm kiến trúc
+- Description (NVARCHAR(MAX)) - Mô tả chi tiết về mẫu nhà
+- CreatedAt (DATETIME2, DEFAULT SYSDATETIME())
+```
+
+### 8. **ElementMenh** (Cấu hình màu theo Ngũ Hành - Dự kiến)
+
+```sql
+- Id (INT, PRIMARY KEY, IDENTITY)
+- MenhName (NVARCHAR(50)) - Tên mệnh (Kim, Mộc, Thủy, Hỏa, Thổ)
+- Keywords (NVARCHAR(MAX)) - Các từ khóa màu sắc tương sinh (JSON array)
+- PromptTemplate (NVARCHAR(MAX)) - Template prompt cho AI
+- CreatedAt (DATETIME2, DEFAULT SYSDATETIME())
+```
+
 ---
 
 ## 🛠️ TECH STACK
@@ -118,7 +197,7 @@ Hệ thống sử dụng **SQL Server** với 3 bảng chính:
 - **Service:** Cloudinary
 - **Upload Method:** Stream upload từ buffer
 - **Folders:**
-  - `exterior_ai/samples` - Ảnh mẫu
+  - `exterior_ai/samples` - Ảnh mẫu (bao gồm ảnh thư viện vùng miền)
   - `exterior_ai/houses` - Ảnh nhà thô
   - `exterior_ai/outputs` - Ảnh kết quả
 
@@ -145,16 +224,18 @@ backend/
 │   │   ├── wizard.js             # Wizard flow (upload-sample, generate-style, generate-final)
 │   │   ├── users.js              # Authentication (register, login, list users)
 │   │   ├── histories.js          # Lịch sử sinh ảnh
-│   │   ├── admin.js              # Admin APIs (stats, users, generations)
+│   │   ├── admin.js              # Admin APIs (stats, users, generations, library)
+│   │   ├── library.js            # [MỚI] Public API lấy thư viện vùng miền
 │   │   ├── designs.js            # Lưu/lấy cấu hình phối màu
 │   │   └── colors.js             # Lấy danh sách màu
 │   └── services/                 # Business logic services
 │       ├── cloud.js              # Cloudinary upload service
 │       ├── external-ai.js        # AI services (Gemini, Stability, Replicate, HuggingFace)
 │       ├── gemini.js             # Gemini AI service (nếu có)
-│       ├── designService.js       # Service quản lý DesignConfigs
-│       ├── colorService.js        # Service quản lý ColorPalette
-│       └── adminSeeder.js         # Tạo tài khoản admin mặc định
+│       ├── aws.js                # [MỚI] AWS services (S3, nếu dùng)
+│       ├── designService.js      # Service quản lý DesignConfigs
+│       ├── colorService.js       # Service quản lý ColorPalette
+│       └── adminSeeder.js        # Tạo tài khoản admin mặc định
 ├── package.json
 └── .env                          # Environment variables
 ```
@@ -171,7 +252,7 @@ frontend/
 │   ├── api/                      # API client functions
 │   │   ├── auth.js               # Authentication APIs
 │   │   ├── wizard.js             # Wizard flow APIs
-│   │   └── admin.js               # Admin APIs
+│   │   └── admin.js              # Admin APIs (users, generations, library)
 │   ├── components/               # React components
 │   │   ├── LoginPage.jsx         # Trang đăng nhập
 │   │   ├── RegisterPage.jsx      # Trang đăng ký
@@ -186,6 +267,7 @@ frontend/
 │   │   ├── AdminDashboardPage.jsx # Trang admin dashboard
 │   │   ├── AdminLayout.jsx       # Layout cho admin pages
 │   │   ├── AdminUserManagement.jsx # Quản lý users (admin)
+│   │   ├── AdminLibraryManager.jsx # [MỚI] Quản lý thư viện mẫu nhà vùng miền
 │   │   └── ToastList.jsx         # Toast notifications
 │   ├── hooks/                    # Custom React hooks
 │   │   ├── useWizardFlow.js      # Hook quản lý wizard flow
@@ -330,6 +412,26 @@ docs/
   - `generateStyle()` - Gửi yêu cầu phong cách
   - `generateFinal()` - Upload ảnh nhà thật và sinh ảnh kết quả
   - `getHistories()` - Lấy lịch sử sinh ảnh
+
+#### `api/admin.js` - [MỚI/CẬP NHẬT]
+
+- **Vai trò:** API client cho các chức năng admin
+- **Chức năng:**
+  - **User Management:**
+    - `fetchAdminUsers()` - Lấy danh sách users (có phân trang, filter)
+    - `createAdminUser()` - Tạo user mới
+    - `updateAdminUser()` - Cập nhật thông tin user
+    - `deleteAdminUser()` - Xóa user
+  - **Generation Management:**
+    - `fetchAdminStats()` - Lấy thống kê tổng quan
+    - `fetchAdminGenerations()` - Lấy danh sách lượt sinh ảnh
+    - `fetchGenerationsByUser()` - Thống kê lượt sinh theo user
+    - `deleteAdminGeneration()` - Xóa lượt sinh ảnh
+  - **Library Management (MỚI):**
+    - `createLibraryItem(formData, token)` - Thêm mẫu nhà vào thư viện
+    - `fetchAdminLibrary(token)` - Lấy danh sách thư viện vùng miền
+    - `updateLibraryItem(id, formData, token)` - Cập nhật mẫu nhà
+    - `deleteLibraryItem(id, token)` - Xóa mẫu nhà
 
 #### `hooks/useWizardFlow.js`
 
@@ -853,6 +955,114 @@ docs/
 
 ---
 
+### **7. File: `library.js`** (`/api/library/*`) - [MỚI]
+
+#### **GET `/api/library/regions`**
+
+- **Mô tả:** Lấy danh sách mẫu nhà thư viện vùng miền (Public API)
+- **Authentication:** Không cần
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "data": [
+      {
+        "Id": 1,
+        "RegionName": "Bắc",
+        "ImageUrl": "https://cloudinary.com/samples/...",
+        "StyleData": "{\"features\": [\"Mái ngói đỏ\", \"Cửa gỗ\"]}",
+        "Description": "Nhà truyền thống miền Bắc với mái ngói đỏ...",
+        "CreatedAt": "2024-01-01T00:00:00Z"
+      }
+    ]
+  }
+  ```
+
+---
+
+### **8. Admin Library APIs** (`/api/admin/library/*`) - [MỚI]
+
+**Tất cả routes trong phần này đều yêu cầu:**
+- Authentication: Cần (JWT Bearer token)
+- Authorization: Phải là admin (middleware `isAdmin`)
+
+#### **POST `/api/admin/library`**
+
+- **Mô tả:** Thêm mẫu nhà mới vào thư viện vùng miền
+- **Request:**
+  - Method: `POST`
+  - Content-Type: `multipart/form-data`
+  - Body:
+    ```
+    regionName: "Bắc" | "Trung" | "Nam" | "Âu"
+    styleData: "{\"features\": [...]}" (JSON string)
+    description: "Mô tả chi tiết..."
+    image: File (ảnh mẫu nhà)
+    ```
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "message": "Đã thêm mẫu nhà vào thư viện thành công",
+    "imageUrl": "https://cloudinary.com/samples/..."
+  }
+  ```
+
+#### **GET `/api/admin/library`**
+
+- **Mô tả:** Lấy danh sách tất cả mẫu nhà (Admin)
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "items": [
+      {
+        "Id": 1,
+        "RegionName": "Bắc",
+        "ImageUrl": "https://...",
+        "StyleData": "...",
+        "Description": "...",
+        "CreatedAt": "2024-01-01T00:00:00Z"
+      }
+    ]
+  }
+  ```
+
+#### **PUT `/api/admin/library/:id`**
+
+- **Mô tả:** Cập nhật thông tin mẫu nhà
+- **Request:**
+  - Method: `PUT`
+  - Content-Type: `multipart/form-data`
+  - Body:
+    ```
+    regionName: "Bắc" (optional)
+    styleData: "..." (optional)
+    description: "..." (optional)
+    image: File (optional - nếu muốn thay ảnh mới)
+    ```
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "message": "Đã cập nhật mẫu nhà thành công",
+    "item": { ... }
+  }
+  ```
+
+#### **DELETE `/api/admin/library/:id`**
+
+- **Mô tả:** Xóa mẫu nhà khỏi thư viện
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "deleted": 1
+  }
+  ```
+
+---
+
 ### **7. Health Check**
 
 #### **GET `/health`**
@@ -1281,9 +1491,30 @@ App.jsx
 │       └── AdminLayout (isAdminArea === true)
 │           ├── AdminDashboard
 │           ├── AdminUserManagement
+│           ├── AdminLibraryManager  [MỚI] - Quản lý thư viện vùng miền
 │           └── AdminDashboardPage
 └── Footer
 ```
+
+**AdminLibraryManager.jsx** - [MỚI]
+
+- **Vai trò:** Component quản lý thư viện mẫu nhà vùng miền
+- **Chức năng:**
+  - CRUD mẫu nhà: Thêm, sửa, xóa mẫu nhà trong thư viện
+  - Upload ảnh mẫu nhà lên Cloudinary
+  - Quản lý theo 4 vùng miền: Bắc, Trung, Nam, Âu
+  - Nhập StyleData (JSON) mô tả đặc điểm kiến trúc
+- **State:**
+  - `items` - Danh sách mẫu nhà
+  - `loading` - Trạng thái loading
+  - `editingItem` - Item đang chỉnh sửa
+  - `formData` - Dữ liệu form nhập
+- **Actions:**
+  - `loadLibrary()` - Tải danh sách thư viện
+  - `handleSubmit()` - Xử lý thêm/cập nhật
+  - `handleDelete()` - Xử lý xóa
+  - `handleEdit()` - Bắt đầu chỉnh sửa
+  - `handleFileChange()` - Xử lý chọn file ảnh
 
 #### **7. UI/UX Features**
 
@@ -1452,5 +1683,14 @@ User logs out
 
 ---
 
-**Cập nhật lần cuối:** 2024-01-01  
-**Phiên bản:** 1.0.0
+**Cập nhật lần cuối:** 2026-01-12  
+**Phiên bản:** 1.1.0
+
+### Changelog v1.1.0:
+- Thêm bảng `RegionalLibrary` cho thư viện mẫu nhà vùng miền
+- Thêm bảng `ElementMenh` (dự kiến) cho cấu hình ngũ hành
+- Thêm API routes cho quản lý thư viện (`/api/library/*`, `/api/admin/library/*`)
+- Thêm component `AdminLibraryManager.jsx` cho Admin quản lý thư viện
+- Thêm các functions trong `api/admin.js` cho Library Management
+- Cập nhật cấu trúc thư mục với các file mới
+
